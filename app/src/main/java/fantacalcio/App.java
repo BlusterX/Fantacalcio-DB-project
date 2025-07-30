@@ -3,60 +3,74 @@ package fantacalcio;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
+
+import fantacalcio.gui.MainFrame;
 import fantacalcio.util.DatabaseConnection;
 
 public class App {
     public static void main(String[] args) {
-        System.out.println(" Welcome to the Fantacalcio application! ");
-        
         // Test della connessione al database
-        testDatabaseConnection();
-        
-        // Qui andranno le altre funzionalità dell'applicazione
-        System.out.println("\n Applicazione pronta per l'uso!");
+        if (!testDatabaseConnection()) {
+            JOptionPane.showMessageDialog(null, 
+                "Impossibile connettersi al database.\nVerifica la configurazione in database.properties", 
+                "Errore Database", 
+                JOptionPane.ERROR_MESSAGE);
+            System.exit(1);
+        }
+        try {
+            UIManager.setLookAndFeel(UIManager.getLookAndFeel());
+        } catch (UnsupportedLookAndFeelException e) {
+            System.out.println("Impossibile impostare il Look and Feel del sistema");
+        }
+        SwingUtilities.invokeLater(() -> {
+            try {
+                MainFrame mainFrame = new MainFrame();
+                mainFrame.setVisible(true);
+                System.out.println("GUI avviata con successo!");
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, 
+                    "Errore durante l'avvio dell'interfaccia grafica:\n" + e.getMessage(), 
+                    "Errore", 
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        });
     }
-    
     /**
      * Testa la connessione al database
      */
-    private static void testDatabaseConnection() {
-        System.out.println("Testing database connection...");
-        
+    private static boolean testDatabaseConnection() {
         try {
-            // Ottieni l'istanza del DatabaseConnection
             DatabaseConnection dbConnection = DatabaseConnection.getInstance();
-            
-            // Testa la connessione
             if (dbConnection.testConnection()) {
                 System.out.println("Database connection successful!");
-                System.out.println(" " + dbConnection.getConnectionInfo());
+                System.out.println(dbConnection.getConnectionInfo());
                 
                 // Test di una query semplice
                 Connection conn = dbConnection.getConnection();
-                try (java.sql.Statement stmt = conn.createStatement(); 
-                    java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'fantacalcio'")) {
-                    
+                try (var stmt = conn.createStatement(); 
+                     var rs = stmt.executeQuery("SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'fantacalcio'")) {
                     if (rs.next()) {
                         int tableCount = rs.getInt("table_count");
                         System.out.println("Trovate " + tableCount + " tabelle nel database 'fantacalcio'");
                     }
-                    
                 }
+                return true;
                 
             } else {
                 System.err.println("Database connection failed!");
+                return false;
             }
-            
         } catch (SQLException e) {
-            System.err.println(" Errore durante il test della connessione:");
+            System.err.println("Errore durante il test della connessione:");
             System.err.println("   " + e.getMessage());
-            System.err.println("\n Possibili soluzioni:");
-            System.err.println("   1. Verifica che MySQL sia avviato");
-            System.err.println("   2. Controlla username/password in database.properties");
-            System.err.println("   3. Verifica che il database 'fantacalcio' esista");
+            return false;
         } catch (Exception e) {
-            System.err.println(" Errore generico: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Errore generico: " + e.getMessage());
+            return false;
         }
     }
 }
