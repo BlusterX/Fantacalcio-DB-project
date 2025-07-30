@@ -19,7 +19,7 @@ java {
 }
 
 application {
-    mainClass = "provadbproj.App"
+    mainClass = "fantacalcio.App"
 }
 
 tasks.named<Test>("test") {
