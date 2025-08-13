@@ -97,7 +97,7 @@ public class DataPopulator {
                             inseriti++;
                         }
                     }
-                } catch (Exception e) {
+                } catch (NumberFormatException e) {
                     System.err.println("Errore riga " + lineNumber + ": " + e.getMessage());
                 }
             }

@@ -38,7 +38,7 @@ public class CalciatoreDAO {
             conn.setAutoCommit(false);
             
             // 1. Inserisci il calciatore
-            String sqlCalciatore = "INSERT INTO CALCIATORI (Nome, Cognome, Ruolo, Costo) VALUES (?, ?, ?, ?)";
+            String sqlCalciatore = "INSERT INTO CALCIATORE (Nome, Cognome, Ruolo, Costo) VALUES (?, ?, ?, ?)";
             
             try (PreparedStatement stmtCalciatore = conn.prepareStatement(sqlCalciatore, Statement.RETURN_GENERATED_KEYS)) {
                 stmtCalciatore.setString(1, calciatore.getNome());
@@ -91,7 +91,7 @@ public class CalciatoreDAO {
      * Trova un calciatore per ID
      */
     public Optional<Calciatore> trovaCalciatorePerId(int idCalciatore) {
-        String sql = "SELECT * FROM CALCIATORI WHERE ID_Calciatore = ?";
+        String sql = "SELECT * FROM CALCIATORE WHERE ID_Calciatore = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -116,7 +116,7 @@ public class CalciatoreDAO {
     public List<CalciatoreConSquadra> trovaTuttiICalciatoriConSquadra() {
         List<CalciatoreConSquadra> risultati = new ArrayList<>();
         String sql = "SELECT c.*, s.ID_SquadraA, s.Nome as NomeSquadra " +
-                    "FROM CALCIATORI c " +
+                    "FROM CALCIATORE c " +
                     "LEFT JOIN APPARTENENZA_SQUADRA ap ON c.ID_Calciatore = ap.ID_Calciatore " +
                     "LEFT JOIN SQUADRA_SERIE_A s ON ap.ID_SquadraA = s.ID_SquadraA " +
                     "ORDER BY s.Nome, c.Cognome, c.Nome";
@@ -153,7 +153,7 @@ public class CalciatoreDAO {
     public List<Calciatore> trovaCalciatoriPerSquadra(int idSquadraSerieA) {
         List<Calciatore> calciatori = new ArrayList<>();
         String sql = "SELECT c.* " +
-                    "FROM CALCIATORI c " +
+                    "FROM CALCIATORE c " +
                     "JOIN APPARTENENZA_SQUADRA ap ON c.ID_Calciatore = ap.ID_Calciatore " +
                     "WHERE ap.ID_SquadraA = ? " +
                     "ORDER BY c.Ruolo, c.Cognome, c.Nome";
@@ -179,7 +179,7 @@ public class CalciatoreDAO {
      * Elimina un calciatore
      */
     public boolean eliminaCalciatore(int idCalciatore) {
-        String sql = "DELETE FROM CALCIATORI WHERE ID_Calciatore = ?";
+        String sql = "DELETE FROM CALCIATORE WHERE ID_Calciatore = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -204,7 +204,7 @@ public class CalciatoreDAO {
      */
     public Map<Calciatore.Ruolo, Integer> contaCalciatoriPerRuolo() {
         Map<Calciatore.Ruolo, Integer> conteggi = new HashMap<>();
-        String sql = "SELECT Ruolo, COUNT(*) as Conteggio FROM CALCIATORI GROUP BY Ruolo";
+        String sql = "SELECT Ruolo, COUNT(*) as Conteggio FROM CALCIATORE GROUP BY Ruolo";
         
         try (Connection conn = dbConnection.getConnection();
              Statement stmt = conn.createStatement();

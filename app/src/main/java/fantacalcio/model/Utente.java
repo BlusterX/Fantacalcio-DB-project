@@ -13,12 +13,7 @@ public class Utente {
     private String numero;
     private LocalDate dataDiNascita;
     private String password;
-    private boolean isAdmin;
     
-    // Costruttori
-    public Utente() {
-        this.isAdmin = false;
-    }
     
     public Utente(String nome, String cognome, String nickname, String email, 
                   String numero, LocalDate dataDiNascita, String password) {
@@ -29,12 +24,11 @@ public class Utente {
         this.numero = numero;
         this.dataDiNascita = dataDiNascita;
         this.password = password;
-        this.isAdmin = false;
     }
     
     // Costruttore completo (con ID per lettura da database)
     public Utente(int idUtente, String nome, String cognome, String nickname, 
-                  String email, String numero, LocalDate dataDiNascita, String password, boolean isAdmin) {
+                  String email, String numero, LocalDate dataDiNascita, String password) {
         this.idUtente = idUtente;
         this.nome = nome;
         this.cognome = cognome;
@@ -43,7 +37,6 @@ public class Utente {
         this.numero = numero;
         this.dataDiNascita = dataDiNascita;
         this.password = password;
-        this.isAdmin = isAdmin;
     }
     
     // Getters e Setters
@@ -111,13 +104,6 @@ public class Utente {
         this.password = password;
     }
     
-    public boolean isAdmin() {
-        return isAdmin;
-    }
-    
-    public void setAdmin(boolean admin) {
-        isAdmin = admin;
-    }
     
     // Metodi di utilità
     public String getNomeCompleto() {
@@ -146,7 +132,7 @@ public class Utente {
     
     @Override
     public String toString() {
-        return String.format("Utente{id=%d, nickname='%s', nome='%s', email='%s', admin=%s}", 
-                           idUtente, nickname, getNomeCompleto(), email, isAdmin);
+        return String.format("Utente{id=%d, nickname='%s', nome='%s', email='%s'}", 
+                           idUtente, nickname, getNomeCompleto(), email);
     }
 }

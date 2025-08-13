@@ -287,7 +287,7 @@ public class SquadraFantacalcioDAO {
      */
     private void caricaCalciatori(SquadraFantacalcio squadra) {
         String sql = """
-            SELECT c.* FROM CALCIATORI c
+            SELECT c.* FROM CALCIATORE c
             JOIN COMPOSIZIONE_SQUADRA cs ON c.ID_Calciatore = cs.ID_Calciatore
             WHERE cs.ID_SquadraFantacalcio = ?
             ORDER BY c.Ruolo, c.Cognome, c.Nome
