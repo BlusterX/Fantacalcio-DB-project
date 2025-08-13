@@ -1,4 +1,4 @@
-package fantacalcio.gui.panels;
+package fantacalcio.gui.admin.panels;
 
 import java.awt.BorderLayout;
 import java.awt.Color;

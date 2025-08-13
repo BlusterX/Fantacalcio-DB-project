@@ -8,7 +8,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
-import fantacalcio.gui.MainFrame;
+import fantacalcio.gui.user.UserLoginFrame;
 import fantacalcio.util.DatabaseConnection;
 
 public class App {
@@ -26,14 +26,15 @@ public class App {
         } catch (UnsupportedLookAndFeelException e) {
             System.out.println("Impossibile impostare il Look and Feel del sistema");
         }
+        
         SwingUtilities.invokeLater(() -> {
             try {
-                MainFrame mainFrame = new MainFrame();
-                mainFrame.setVisible(true);
-                System.out.println("GUI avviata con successo!");
+                UserLoginFrame loginFrame = new UserLoginFrame();
+                loginFrame.setVisible(true);
+                System.out.println("Applicazione FantaCalcio avviata con successo!");
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, 
-                    "Errore durante l'avvio dell'interfaccia grafica:\n" + e.getMessage(), 
+                    "Errore durante l'avvio dell'applicazione:\n" + e.getMessage(), 
                     "Errore", 
                     JOptionPane.ERROR_MESSAGE);
             }

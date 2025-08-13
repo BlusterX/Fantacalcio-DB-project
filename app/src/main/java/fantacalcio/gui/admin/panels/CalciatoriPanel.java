@@ -1,4 +1,4 @@
-package fantacalcio.gui.panels;
+package fantacalcio.gui.admin.panels;
 
 import fantacalcio.dao.CalciatoreDAO;
 import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
@@ -25,8 +25,8 @@ public class CalciatoriPanel extends JPanel {
     private DefaultTableModel modelTabella;
     private TableRowSorter<DefaultTableModel> sorter;
     
-    // Form components
-    private JTextField txtNome, txtCognome, txtNickname, txtFiltro;
+    // Form components  
+    private JTextField txtNome, txtCognome, txtCosto, txtFiltro;
     private JComboBox<Calciatore.Ruolo> comboRuolo, comboFiltroRuolo;
     private JComboBox<SquadraSerieA> comboSquadra, comboFiltroSquadra;
     private JButton btnAggiungi, btnElimina, btnPulisci, btnRefresh;
@@ -56,7 +56,7 @@ public class CalciatoriPanel extends JPanel {
     }
     
     private void createTable() {
-        String[] colonne = {"ID", "Nome", "Cognome", "Nickname", "Ruolo", "Squadra"};
+        String[] colonne = {"ID", "Nome", "Cognome", "Costo", "Ruolo", "Squadra"};
         modelTabella = new DefaultTableModel(colonne, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -94,6 +94,9 @@ public class CalciatoriPanel extends JPanel {
     private void createForm() {
         txtNome = new JTextField(15);
         txtCognome = new JTextField(15);
+        // AGGIUNTA: campo per il costo che mancava
+        txtCosto = new JTextField(10);
+        txtCosto.setToolTipText("Costo in crediti (lascia vuoto per il valore di default)");
         
         comboRuolo = new JComboBox<>(Calciatore.Ruolo.values());
         comboSquadra = new JComboBox<>();
@@ -227,6 +230,12 @@ public class CalciatoriPanel extends JPanel {
         formPanel.add(new JLabel("Squadra:"), gbc);
         gbc.gridx = 3;
         formPanel.add(comboSquadra, gbc);
+        
+        // Terza riga - AGGIUNTA
+        gbc.gridx = 0; gbc.gridy = 2;
+        formPanel.add(new JLabel("Costo:"), gbc);
+        gbc.gridx = 1;
+        formPanel.add(txtCosto, gbc);
         
         return formPanel;
     }

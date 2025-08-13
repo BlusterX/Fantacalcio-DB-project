@@ -1,4 +1,4 @@
-package fantacalcio.gui.panels;
+package fantacalcio.gui.admin.panels;
 
 import fantacalcio.dao.SquadraSerieADAO;
 import fantacalcio.dao.CalciatoreDAO;
@@ -77,26 +77,22 @@ public class SquadrePanel extends JPanel {
         btnPopola = new JButton("Popola Serie A");
         btnElimina = new JButton("Elimina");
         btnRefresh = new JButton("Aggiorna");
-        JButton btnSetupCompleto = new JButton("Setup Completo Serie A");
         
         // Stile pulsanti
         styleButton(btnAggiungi, new Color(76, 175, 80));   // Verde
         styleButton(btnPopola, new Color(33, 150, 243));    // Blu
         styleButton(btnElimina, new Color(244, 67, 54));    // Rosso
         styleButton(btnRefresh, new Color(158, 158, 158));  // Grigio
-        styleButton(btnSetupCompleto, new Color(156, 39, 176)); // Viola
         
         // Tooltip informativi
         btnPopola.setToolTipText("Inserisce automaticamente tutte le 20 squadre di Serie A");
         btnElimina.setToolTipText("Elimina la squadra selezionata e tutti i suoi calciatori");
-        btnSetupCompleto.setToolTipText("Inserisce squadre + giocatori famosi automaticamente");
         
         // Event listeners
         btnAggiungi.addActionListener(this::aggiungiSquadra);
         btnPopola.addActionListener(this::popolaSerieA);
         btnElimina.addActionListener(this::eliminaSquadra);
         btnRefresh.addActionListener(e -> loadData());
-        btnSetupCompleto.addActionListener(this::setupCompletoSerieA);
     }
     
     private void setupLayout() {
@@ -189,15 +185,13 @@ public class SquadrePanel extends JPanel {
         
         // Aggiorna statistiche
         updateStats(squadre.size(), totalCalciatori);
-        
-        // NON chiamare parentFrame.notifySquadreChanged() qui per evitare loop!
     }
     
     private void updateStats(int numSquadre, int totalCalciatori) {
         Component statsPanel = ((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.EAST);
         if (statsPanel instanceof JPanel) {
             Component[] components = ((JPanel) statsPanel).getComponents();
-            if (components.length >= 4) {
+            if (components.length >= 6) {
                 ((JLabel) components[1]).setText("Squadre: " + numSquadre);
                 ((JLabel) components[3]).setText("Tot. Calciatori: " + totalCalciatori);
                 
@@ -432,6 +426,9 @@ public class SquadrePanel extends JPanel {
             worker.execute();
         }
     }
+    
+    // METODO STYLEBUTTON CORRETTO - questo era mancante!
+    private void styleButton(JButton button, Color color) {
         button.setBackground(color);
         button.setForeground(Color.WHITE);
         button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));

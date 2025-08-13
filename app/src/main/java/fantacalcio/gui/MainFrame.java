@@ -13,9 +13,9 @@ import javax.swing.JTabbedPane;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
-import fantacalcio.gui.panels.CalciatoriPanel;
-import fantacalcio.gui.panels.SquadrePanel;
-import fantacalcio.gui.panels.UtentiPanel;
+import fantacalcio.gui.admin.panels.CalciatoriPanel;
+import fantacalcio.gui.admin.panels.SquadrePanel;
+import fantacalcio.gui.admin.panels.UtentiPanel;
 
 /**
  * Finestra principale dell'app
