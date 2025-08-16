@@ -31,7 +31,8 @@ public class Calciatore {
     private String cognome;
     private Ruolo ruolo;
     private int costo; // Costo in crediti
-    
+    private int idFascia;
+
     // Costruttori
     public Calciatore() {}
     
@@ -114,6 +115,14 @@ public class Calciatore {
     
     public String getNomeConCosto() {
         return getNomeCompleto() + " - " + costo + " crediti";
+    }
+
+    public int getIdFascia() {
+         return idFascia; 
+        }
+
+    public void setIdFascia(int idFascia) { 
+        this.idFascia = idFascia; 
     }
     
     /**
