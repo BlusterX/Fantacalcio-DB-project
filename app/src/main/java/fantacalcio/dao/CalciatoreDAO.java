@@ -55,8 +55,8 @@ public class CalciatoreDAO {
                         }
                     }
                     
-                    // 2. Inserisci la relazione APPARTENENZA_SQUADRA
-                    String sqlAppartenenza = "INSERT INTO APPARTENENZA_SQUADRA (ID_Calciatore, ID_SquadraA) VALUES (?, ?)";
+                    // 2. Inserisci la relazione APPARTENENZA_SQUADRA_SERIE_A
+                    String sqlAppartenenza = "INSERT INTO APPARTENENZA_SQUADRA_SERIE_A (ID_Calciatore, ID_SquadraA) VALUES (?, ?)";
                     
                     try (PreparedStatement stmtAppartenenza = conn.prepareStatement(sqlAppartenenza)) {
                         stmtAppartenenza.setInt(1, calciatore.getIdCalciatore());
@@ -117,7 +117,7 @@ public class CalciatoreDAO {
         List<CalciatoreConSquadra> risultati = new ArrayList<>();
         String sql = "SELECT c.*, s.ID_SquadraA, s.Nome as NomeSquadra " +
                     "FROM CALCIATORE c " +
-                    "LEFT JOIN APPARTENENZA_SQUADRA ap ON c.ID_Calciatore = ap.ID_Calciatore " +
+                    "LEFT JOIN APPARTENENZA_SQUADRA_SERIE_A ap ON c.ID_Calciatore = ap.ID_Calciatore " +
                     "LEFT JOIN SQUADRA_SERIE_A s ON ap.ID_SquadraA = s.ID_SquadraA " +
                     "ORDER BY s.Nome, c.Cognome, c.Nome";
         
@@ -154,7 +154,7 @@ public class CalciatoreDAO {
         List<Calciatore> calciatori = new ArrayList<>();
         String sql = "SELECT c.* " +
                     "FROM CALCIATORE c " +
-                    "JOIN APPARTENENZA_SQUADRA ap ON c.ID_Calciatore = ap.ID_Calciatore " +
+                    "JOIN APPARTENENZA_SQUADRA_SERIE_A ap ON c.ID_Calciatore = ap.ID_Calciatore " +
                     "WHERE ap.ID_SquadraA = ? " +
                     "ORDER BY c.Ruolo, c.Cognome, c.Nome";
         
@@ -198,6 +198,24 @@ public class CalciatoreDAO {
         }
         return false;
     }
+
+    public List<Calciatore> trovaTuttiICalciatori() {
+    List<Calciatore> calciatori = new ArrayList<>();
+    String sql = "SELECT * FROM CALCIATORE";
+
+    try (Connection conn = dbConnection.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql);
+         ResultSet rs = stmt.executeQuery()) {
+
+        while (rs.next()) {
+            calciatori.add(creaCalciatoreDaResultSet(rs));
+        }
+    } catch (SQLException e) {
+        System.err.println("Errore recupero calciatori: " + e.getMessage());
+    }
+        return calciatori;
+    }
+
     
     /**
      * Conta calciatori per ruolo
@@ -211,7 +229,14 @@ public class CalciatoreDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
-                Calciatore.Ruolo ruolo = Calciatore.Ruolo.valueOf(rs.getString("Ruolo"));
+                Calciatore.Ruolo ruolo;
+                switch (rs.getString("Ruolo")) {
+                    case "P" -> ruolo = Calciatore.Ruolo.PORTIERE;
+                    case "D" -> ruolo = Calciatore.Ruolo.DIFENSORE;
+                    case "C" -> ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
+                    case "A" -> ruolo = Calciatore.Ruolo.ATTACCANTE;
+                    default  -> throw new IllegalArgumentException("Ruolo non valido: "+rs.getString("Ruolo"));
+                }
                 int conteggio = rs.getInt("Conteggio");
                 conteggi.put(ruolo, conteggio);
             }
@@ -226,14 +251,26 @@ public class CalciatoreDAO {
      * Metodo helper per creare un oggetto Calciatore da un ResultSet
      */
     private Calciatore creaCalciatoreDaResultSet(ResultSet rs) throws SQLException {
+        String ruoloDb = rs.getString("Ruolo");
+
+        Calciatore.Ruolo ruolo;
+        switch (ruoloDb) {
+            case "P"  -> ruolo = Calciatore.Ruolo.PORTIERE;
+            case "D"  -> ruolo = Calciatore.Ruolo.DIFENSORE;
+            case "C"  -> ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
+            case "A"  -> ruolo = Calciatore.Ruolo.ATTACCANTE;
+            default   -> throw new IllegalArgumentException("Ruolo non valido: " + ruoloDb);
+        }
+
         return new Calciatore(
             rs.getInt("ID_Calciatore"),
             rs.getString("Nome"),
             rs.getString("Cognome"),
-            Calciatore.Ruolo.valueOf(rs.getString("Ruolo")),
+            ruolo,
             rs.getInt("Costo")
         );
     }
+
     
     /**
      * Classe helper per rappresentare un calciatore con la sua squadra

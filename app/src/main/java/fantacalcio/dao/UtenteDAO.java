@@ -273,8 +273,7 @@ public class UtenteDAO {
             rs.getString("Email"),
             rs.getString("Numero"),
             rs.getDate("Data_di_nascita").toLocalDate(),
-            rs.getString("Password"),
-            rs.getBoolean("is_admin")
+            rs.getString("Password")
         );
     }
 }
