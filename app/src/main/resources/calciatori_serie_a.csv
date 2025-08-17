@@ -1,0 +1,353 @@
+# AC Milan
+Mike,Maignan,P,AC Milan,60
+Theo,Hernandez,D,AC Milan,60
+Fikayo,Tomori,D,AC Milan,50
+Davide,Calabria,D,AC Milan,35
+Ruben,Loftus-Cheek,C,AC Milan,50
+Ismael,Bennacer,C,AC Milan,50
+Samuel,Chukwueze,A,AC Milan,50
+Rafael,Leao,A,AC Milan,80
+Olivier,Giroud,A,AC Milan,65
+Christian,Pulisic,A,AC Milan,50
+Malick,Thiaw,D,AC Milan,35
+Tijjani,Reijnders,C,AC Milan,40
+Rade,Krunic,C,AC Milan,35
+Noah,Okafor,A,AC Milan,35
+Alessandro,Florenzi,D,AC Milan,30
+
+# Inter
+Yann,Sommer,P,Inter,60
+Benjamin,Pavard,D,Inter,60
+Francesco,Acerbi,D,Inter,35
+Alessandro,Bastoni,D,Inter,60
+Federico,Dimarco,D,Inter,60
+Nicolo,Barella,C,Inter,70
+Davide,Frattesi,C,Inter,50
+Hakan,Calhanoglu,C,Inter,60
+Lautaro,Martinez,A,Inter,85
+Marcus,Thuram,A,Inter,65
+Denzel,Dumfries,D,Inter,50
+Henrikh,Mkhitaryan,C,Inter,40
+Stefan,de Vrij,D,Inter,35
+Juan,Cuadrado,A,Inter,30
+Alexis,S�nchez,A,Inter,30
+
+# Juventus
+Wojciech,Szczesny,P,Juventus,60
+Gleison,Bremer,D,Juventus,50
+Federico,Gatti,D,Juventus,35
+Manuel,Locatelli,C,Juventus,55
+Adrien,Rabiot,C,Juventus,50
+Federico,Chiesa,A,Juventus,75
+Dusan,Vlahovic,A,Juventus,85
+Moise,Kean,A,Juventus,40
+Danilo,Luiz,D,Juventus,45
+Andrea,Cambiaso,D,Juventus,30
+Timothy,Weah,A,Juventus,30
+Weston,McKennie,C,Juventus,35
+Arkadiusz,Milik,A,Juventus,40
+
+# Napoli
+Alex,Meret,P,Napoli,35
+Giovanni,Di Lorenzo,D,Napoli,50
+Amir,Rrahmani,D,Napoli,35
+Stanislav,Lobotka,C,Napoli,55
+Piotr,Zielinski,C,Napoli,50
+Khvicha,Kvaratskhelia,A,Napoli,80
+Victor,Osimhen,A,Napoli,90
+Giacomo,Raspadori,A,Napoli,45
+Giovanni,Simeone,A,Napoli,40
+Eljif,Elmas,C,Napoli,35
+Leo,Ostigard,D,Napoli,30
+Jesper,Lindstr�m,C,Napoli,35
+
+# AS Roma
+Rui,Patricio,P,AS Roma,25
+Gianluca,Mancini,D,AS Roma,40
+Chris,Smalling,D,AS Roma,35
+Lorenzo,Pellegrini,C,AS Roma,60
+Bryan,Cristante,C,AS Roma,35
+Paulo,Dybala,A,AS Roma,75
+Romelu,Lukaku,A,AS Roma,65
+Evan,Ndicka,D,AS Roma,35
+Leandro,Paredes,C,AS Roma,40
+Renato,Sanches,C,AS Roma,35
+Stephan,El Shaarawy,A,AS Roma,35
+Andrea,Belotti,A,AS Roma,35
+
+# Lazio
+Ivan,Provedel,P,Lazio,35
+Alessio,Romagnoli,D,Lazio,35
+Nicolo,Casale,D,Lazio,30
+Mattia,Zaccagni,C,Lazio,50
+Luis,Alberto,C,Lazio,50
+Sergej,Milinkovic-Savic,C,Lazio,70
+Ciro,Immobile,A,Lazio,70
+Felipe,Anderson,A,Lazio,50
+Matias,Vecino,C,Lazio,35
+Daichi,Kamada,C,Lazio,40
+Patric,Gabarr�n,D,Lazio,30
+Gustav,Isaksen,A,Lazio,35
+Pedro,Rodriguez,A,Lazio,30
+
+# Atalanta
+Juan,Musso,P,Atalanta,35
+Giorgio,Scalvini,D,Atalanta,45
+Rafael,Toloi,D,Atalanta,35
+Teun,Koopmeiners,C,Atalanta,60
+Marten,De Roon,C,Atalanta,45
+Ademola,Lookman,A,Atalanta,55
+Gianluca,Scamacca,A,Atalanta,60
+Sead,Kolasinac,D,Atalanta,30
+Charles,De Ketelaere,A,Atalanta,40
+Mario,Pasalic,C,Atalanta,40
+Hans,Hateboer,D,Atalanta,30
+
+# Fiorentina
+Pietro,Terracciano,P,Fiorentina,30
+Nikola,Milenkovic,D,Fiorentina,35
+Cristiano,Biraghi,D,Fiorentina,30
+Giacomo,Bonaventura,C,Fiorentina,45
+Arthur,Melo,C,Fiorentina,35
+Riccardo,Sottil,A,Fiorentina,30
+Nicolas,Gonzalez,A,Fiorentina,50
+Alfred,Duncan,C,Fiorentina,30
+Rolando,Mandragora,C,Fiorentina,30
+Lucas,Martinez Quarta,D,Fiorentina,30
+Antonin,Barak,C,Fiorentina,35
+
+# Bologna
+Lukasz,Skorupski,P,Bologna,30
+Stefan,Posch,D,Bologna,30
+Jhon,Lucumi,D,Bologna,30
+Lewis,Ferguson,C,Bologna,40
+Remo,Freuler,C,Bologna,35
+Riccardo,Orsolini,A,Bologna,45
+Joshua,Zirkzee,A,Bologna,50
+Nikola,Moro,C,Bologna,30
+Michel,Aebischer,C,Bologna,30
+Nicola,Sansone,A,Bologna,30
+
+# Torino
+Vanja,Milinkovic-Savic,P,Torino,30
+Alessandro,Buongiorno,D,Torino,35
+Perr,Schuurs,D,Torino,35
+Samuele,Ricci,C,Torino,35
+Ivan,Ilic,C,Torino,35
+Antonio,Sanabria,A,Torino,45
+Duvan,Zapata,A,Torino,45
+Gvidas,Gineitis,C,Torino,25
+Karol,Linetty,C,Torino,30
+Nemanja,Radonjic,A,Torino,30
+
+# Udinese
+Marco,Silvestri,P,Udinese,30
+Nehuen,Perez,D,Udinese,30
+Jaka,Bijol,D,Udinese,30
+Walace,Souza,C,Udinese,30
+Sandi,Lovric,C,Udinese,30
+Lazar,Samardzic,C,Udinese,40
+Beto,Betuncal,A,Udinese,45
+Isaac,Success,A,Udinese,30
+Florian,Thauvin,A,Udinese,35
+Roberto,Pereyra,C,Udinese,40
+Kingsley,Ehizibue,D,Udinese,25
+Lorenzo,Lucca,A,Udinese,30
+Thomas,Kristensen,D,Udinese,25
+
+# Sassuolo
+Andrea,Consigli,P,Sassuolo,30
+Gian Marco,Ferrari,D,Sassuolo,30
+Ruan,Tressoldi,D,Sassuolo,30
+Davide,Frattesi,C,Sassuolo,50
+Nedim,Bajrami,C,Sassuolo,35
+Domenico,Berardi,A,Sassuolo,60
+Andrea,Pinamonti,A,Sassuolo,40
+Kristian,Thorstvedt,C,Sassuolo,35
+Jeremy,Toljan,D,Sassuolo,30
+Kristian,Volpato,A,Sassuolo,30
+Gregoire,Defrel,A,Sassuolo,30
+Matheus,Henrique,C,Sassuolo,35
+
+# Empoli
+Elia,Caprile,P,Empoli,25
+Sebastiano,Luperto,D,Empoli,30
+Ardian,Ismajli,D,Empoli,25
+Jacopo,Fazzini,C,Empoli,25
+Filippo,Ranocchia,C,Empoli,25
+Francesco,Caputo,A,Empoli,35
+Tommaso,Baldanzi,A,Empoli,35
+Alberto,Grassi,C,Empoli,30
+Simone,Bastoni,D,Empoli,25
+Giuseppe,Pezzella,D,Empoli,25
+Razvan,Marin,C,Empoli,30
+Nicol�,Cambagiorni,A,Empoli,25
+
+# Verona
+Lorenzo,Montip�,P,Verona,25
+Isak,Hien,D,Verona,30
+Diego,Coppola,D,Verona,25
+Ondrej,Duda,C,Verona,35
+Adrien,Tameze,C,Verona,30
+Cyril,Ngonge,A,Verona,35
+Milan,Djuric,A,Verona,30
+Josh,Doig,D,Verona,30
+Darko,Lazovic,C,Verona,35
+Jayden,Braaf,A,Verona,25
+Thomas,Henry,A,Verona,30
+
+# Salernitana
+Guillermo,Ochoa,P,Salernitana,30
+Lorenzo,Pirola,D,Salernitana,30
+Norbert,Gyomber,D,Salernitana,25
+Emil,Bohinen,C,Salernitana,25
+Lassana,Coulibaly,C,Salernitana,30
+Boulaye,Dia,A,Salernitana,45
+Antonio,Candreva,A,Salernitana,35
+Marash,Kumbulla,D,Salernitana,30
+Junior,Sambia,D,Salernitana,25
+Mateusz,Legowski,C,Salernitana,25
+Jovane,Cabral,A,Salernitana,30
+
+# Cagliari
+Boris,Radunovic,P,Cagliari,25
+Alberto,Dossena,D,Cagliari,25
+Pantelis,Hatzidiakos,D,Cagliari,25
+Nahitan,Nandez,C,Cagliari,35
+Alessandro,Di Pardo,D,Cagliari,25
+Antoine,Makoumbou,C,Cagliari,30
+Nikola,Vla�i?,C,Cagliari,35
+Leonardo,Pavoletti,A,Cagliari,30
+Andrea,Petagna,A,Cagliari,30
+Gaetano,Oristanio,A,Cagliari,25
+Zito,Luvumbo,A,Cagliari,35
+Gianluca,Lapadula,A,Cagliari,45
+Paulo,Azzi,D,Cagliari,25
+Eldor,Shomurodov,A,Cagliari,30
+Nahuel,Altare,D,Cagliari,25
+
+# Frosinone
+Stefano,Turati,P,Frosinone,25
+Caleb,Okoli,D,Frosinone,25
+Riccardo,Marchizza,D,Frosinone,25
+Luca,Mazzitelli,C,Frosinone,30
+Matteo,Brescianini,C,Frosinone,25
+Abdou,Harroui,C,Frosinone,25
+Marvin,Cuni,A,Frosinone,25
+Walid,Chedira,A,Frosinone,30
+Matias,Soule,A,Frosinone,35
+Anthony,Lopopolo,A,Frosinone,20
+Emanuele,Valeri,D,Frosinone,25
+Enzo,Barrenechea,C,Frosinone,25
+Simone,Romagnoli,D,Frosinone,25
+Arijon,Ibrahimovic,C,Frosinone,25
+Gennaro,Borelli,A,Frosinone,25
+
+# Lecce
+Wladimiro,Falcone,P,Lecce,30
+Federico,Baschers,D,Lecce,25
+Vasilis,Gendreas,D,Lecce,25
+Federico,Brancolini,D,Lecce,25
+Alexis,Blin,C,Lecce,30
+Youssef,Maleh,C,Lecce,25
+Hamza,Rafia,C,Lecce,25
+Pontus,Almqvist,A,Lecce,30
+Lameck,Banda,A,Lecce,30
+Nikola,Krmencik,A,Lecce,30
+Remi,Oudot,C,Lecce,25
+Patrick,Dorgu,D,Lecce,25
+Valentin,Gendrey,D,Lecce,25
+Gabriel,Strefezza,A,Lecce,35
+Robert,Picol,A,Lecce,25
+
+# Monza
+Michele,Di Gregorio,P,Monza,45
+Pablo,Mari,D,Monza,35
+Luca,Caldirola,D,Monza,30
+Samuele,Birindelli,D,Monza,30
+Roberto,Gagliardini,C,Monza,35
+Matteo,Pessina,C,Monza,50
+Andrea,Colpani,C,Monza,50
+Jos�,Machin,C,Monza,30
+Dany,Mota,A,Monza,35
+Lorenzo,Colombo,A,Monza,30
+Patrick,Ciurria,A,Monza,35
+Valentin,Carboni,A,Monza,30
+Armando,Izzo,D,Monza,35
+Gianluca,Caprari,A,Monza,35
+Mirko,Maric,A,Monza,30
+
+# Genoa
+Josep,Martinez,P,Genoa,30
+Radu,Dragusin,D,Genoa,35
+Mateo,Rettigui,A,Genoa,50
+Kevin,Strootman,C,Genoa,35
+Morten,Frendrup,C,Genoa,30
+Stefano,Sabelli,D,Genoa,25
+Milan,Badelj,C,Genoa,30
+Caleb,Ekuban,A,Genoa,25
+Albert,Gudmundsson,A,Genoa,40
+Aaron,Martin,D,Genoa,30
+Junior,Messias,A,Genoa,35
+Johan,Vasquez,D,Genoa,30
+George,Puscas,A,Genoa,25
+Koni,De Winter,D,Genoa,30
+Ruslan,Malinovskyi,C,Genoa,35
+
+# Giocatori Scarsi
+Luka,Jovi?,ATTACCANTE,AC Milan,20
+Yacine,Adli,CENTROCAMPISTA,AC Milan,20
+
+Stefano,Pirola,DIFENSORE,Inter,20
+Valentin,Carboni,ATTACCANTE,Inter,18
+
+Mattia,Perin,PORTIERE,Juventus,20
+Hans,Nicolussi Caviglia,CENTROCAMPISTA,Juventus,18
+
+Pierluigi,Gollini,PORTIERE,Napoli,20
+Alessio,Zerbin,ATTACCANTE,Napoli,18
+
+Mile, Svilar,PORTIERE,AS Roma,18
+Nicola,Zalewski,CENTROCAMPISTA,AS Roma,20
+
+Luigi,Sepe,PORTIERE,Lazio,18
+Toma,Basic,CENTROCAMPISTA,Lazio,20
+
+Francesco,Rossi,PORTIERE,Atalanta,18
+Josep,Ilicic,ATTACCANTE,Atalanta,20
+
+Alfred,Duncan,CENTROCAMPISTA,Fiorentina,20
+Antonin,Barak,CENTROCAMPISTA,Fiorentina,22
+
+Nicola,Bagnolini,PORTIERE,Bologna,15
+Sydney,van Hooijdonk,ATTACCANTE,Bologna,18
+
+David,Zima,DIFENSORE,Torino,20
+Yann,Karamoh,ATTACCANTE,Torino,20
+
+Silvestri,Arslan,CENTROCAMPISTA,Udinese,20
+Jordan,Zemura,DIFENSORE,Udinese,20
+
+Gian Marco,Ferrari,DIFENSORE,Sassuolo,20
+Filip,Djuricic,CENTROCAMPISTA,Sassuolo,20
+
+Gabriele,Guarino,DIFENSORE,Empoli,18
+Matteo,Cancellieri,ATTACCANTE,Empoli,20
+
+Mateusz,Praszelik,CENTROCAMPISTA,Verona,18
+Riccardo,Saponara,ATTACCANTE,Verona,20
+
+Jovane,Cabral,ATTACCANTE,Salernitana,18
+Grigoris,Kastanos,CENTROCAMPISTA,Salernitana,20
+
+Boris,Radunovi?,PORTIERE,Cagliari,20
+Paulo,Azzi,DIFENSORE,Cagliari,18
+
+Anthony,Oyono,DIFENSORE,Frosinone,18
+Michele,Camporese,DIFENSORE,Frosinone,20
+
+Roberto,Picolo,CENTROCAMPISTA,Lecce,18
+Nikola,Krstovi?,ATTACCANTE,Lecce,20
+
+Gianluca,Mota,ATTACCANTE,Monza,18
+Andrea,Colpani,CENTROCAMPISTA,Monza,20
