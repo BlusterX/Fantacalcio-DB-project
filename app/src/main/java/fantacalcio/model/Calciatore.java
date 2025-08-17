@@ -36,16 +36,12 @@ public class Calciatore {
     // Costruttori
     public Calciatore() {}
     
-    public Calciatore(String nome, String cognome, Ruolo ruolo, FasciaGiocatore fascia) {
-        this.nome = nome;
-        this.cognome = cognome;
-        this.ruolo = ruolo;
-        this.fascia = fascia;
-        this.costo = getCostoDefaultPerRuolo(ruolo);
-        this.votaMediaStagione = 6.0;
-        this.infortunato = false;
-        this.squalificato = false;
-    }
+    public Calciatore(String nome, String cognome, Ruolo ruolo) {
+    this.nome = nome;
+    this.cognome = cognome;
+    this.ruolo = ruolo;
+    this.costo = getCostoDefaultPerRuolo(ruolo);
+}
     
     public Calciatore(String nome, String cognome, Ruolo ruolo, int costo) {
         this.nome = nome;

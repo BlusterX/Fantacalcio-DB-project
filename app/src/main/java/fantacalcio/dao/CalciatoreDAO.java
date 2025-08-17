@@ -43,7 +43,7 @@ public class CalciatoreDAO {
             try (PreparedStatement stmtCalciatore = conn.prepareStatement(sqlCalciatore, Statement.RETURN_GENERATED_KEYS)) {
                 stmtCalciatore.setString(1, calciatore.getNome());
                 stmtCalciatore.setString(2, calciatore.getCognome());
-                stmtCalciatore.setString(3, calciatore.getRuolo().name());
+                stmtCalciatore.setString(3, calciatore.getRuolo().getAbbreviazione());
                 stmtCalciatore.setInt(4, calciatore.getCosto());
                 
                 int righeInserite = stmtCalciatore.executeUpdate();
