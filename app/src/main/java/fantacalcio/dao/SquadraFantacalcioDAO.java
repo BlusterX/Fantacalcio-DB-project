@@ -31,7 +31,7 @@ public class SquadraFantacalcioDAO {
     public boolean creaSquadra(SquadraFantacalcio squadra) {
         String sql = """
             INSERT INTO SQUADRA_FANTACALCIO 
-            (Nome_squadra, ID_Utente, Budget_totale, Budget_rimanente, Data_creazione, Data_ultima_modifica, Completata) 
+            (Nome, ID_Utente, Budget_totale, Budget_rimanente, Data_creazione, Data_ultima_modifica, Completata) 
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
         
@@ -132,7 +132,7 @@ public class SquadraFantacalcioDAO {
     public boolean aggiornaSquadra(SquadraFantacalcio squadra) {
         String sql = """
             UPDATE SQUADRA_FANTACALCIO 
-            SET Nome_squadra = ?, Budget_rimanente = ?, Data_ultima_modifica = ?, Completata = ?
+            SET Nome = ?, Budget_rimanente = ?, Data_ultima_modifica = ?, Completata = ?
             WHERE ID_SquadraFantacalcio = ?
             """;
         
@@ -186,7 +186,7 @@ public class SquadraFantacalcioDAO {
      * Aggiunge un calciatore alla squadra
      */
     public boolean aggiungiCalciatoreAllaSquadra(int idSquadra, int idCalciatore) {
-        String sql = "INSERT INTO COMPOSIZIONE_SQUADRA (ID_SquadraFantacalcio, ID_Calciatore) VALUES (?, ?)";
+        String sql = "INSERT INTO COMPOSIZIONE (ID_Squadra, ID_Calciatore) VALUES (?, ?)";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -214,10 +214,10 @@ public class SquadraFantacalcioDAO {
      * Rimuove un calciatore dalla squadra
      */
     public boolean rimuoviCalciatoreDallaSquadra(int idSquadra, int idCalciatore) {
-        String sql = "DELETE FROM COMPOSIZIONE_SQUADRA WHERE ID_SquadraFantacalcio = ? AND ID_Calciatore = ?";
+        String sql = "DELETE FROM COMPOSIZIONE WHERE ID_Squadra = ? AND ID_Calciatore = ?";
         
         try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, idSquadra);
             stmt.setInt(2, idCalciatore);
@@ -239,7 +239,7 @@ public class SquadraFantacalcioDAO {
      * Verifica se un nome squadra è già utilizzato da un utente
      */
     public boolean nomeSquadraEsiste(String nomeSquadra, int idUtente) {
-        String sql = "SELECT COUNT(*) FROM SQUADRA_FANTACALCIO WHERE Nome_squadra = ? AND ID_Utente = ?";
+        String sql = "SELECT COUNT(*) FROM SQUADRA_FANTACALCIO WHERE Nome = ? AND ID_Utente = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -288,7 +288,7 @@ public class SquadraFantacalcioDAO {
     private void caricaCalciatori(SquadraFantacalcio squadra) {
         String sql = """
             SELECT c.* FROM CALCIATORE c
-            JOIN COMPOSIZIONE_SQUADRA cs ON c.ID_Calciatore = cs.ID_Calciatore
+            JOIN COMPOSIZIONE cs ON c.ID_Calciatore = cs.ID_Calciatore
             WHERE cs.ID_SquadraFantacalcio = ?
             ORDER BY c.Ruolo, c.Cognome, c.Nome
             """;
@@ -349,7 +349,7 @@ public class SquadraFantacalcioDAO {
     private SquadraFantacalcio creaSquadraDaResultSet(ResultSet rs) throws SQLException {
         return new SquadraFantacalcio(
             rs.getInt("ID_SquadraFantacalcio"),
-            rs.getString("Nome_squadra"),
+            rs.getString("Nome"),
             rs.getInt("ID_Utente"),
             rs.getInt("Budget_totale"),
             rs.getInt("Budget_rimanente"),

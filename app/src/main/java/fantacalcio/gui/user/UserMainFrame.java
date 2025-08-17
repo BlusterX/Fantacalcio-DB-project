@@ -235,7 +235,7 @@ public class UserMainFrame extends JFrame {
             • Totale: 25 giocatori
             
             💰 BUDGET:
-            • Budget iniziale: 500 crediti
+            • Budget iniziale: 1000 crediti
             • Ogni giocatore ha un costo fisso
             • Devi rimanere entro il budget
             

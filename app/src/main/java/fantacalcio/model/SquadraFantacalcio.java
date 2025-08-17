@@ -20,7 +20,7 @@ public class SquadraFantacalcio {
     private List<Calciatore> calciatori;
     
     // Costanti per regole fantacalcio
-    public static final int BUDGET_INIZIALE = 500; // crediti
+    public static final int BUDGET_INIZIALE = 1000; // crediti
     public static final int NUM_PORTIERI_RICHIESTI = 3;
     public static final int NUM_DIFENSORI_RICHIESTI = 8;
     public static final int NUM_CENTROCAMPISTI_RICHIESTI = 8;

@@ -1,16 +1,34 @@
 package fantacalcio.gui.admin.panels;
 
-import fantacalcio.dao.SquadraSerieADAO;
-import fantacalcio.dao.CalciatoreDAO;
-import fantacalcio.model.SquadraSerieA;
-import fantacalcio.gui.MainFrame;
-import fantacalcio.util.DataPopulator;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+
+import fantacalcio.dao.CalciatoreDAO;
+import fantacalcio.dao.SquadraSerieADAO;
+import fantacalcio.gui.MainFrame;
+import fantacalcio.model.SquadraSerieA;
+import fantacalcio.util.DataPopulator;
 
 public class SquadrePanel extends JPanel {
     
@@ -403,6 +421,12 @@ public class SquadrePanel extends JPanel {
                 @Override
                 protected void done() {
                     loadData();
+                    Component[] components = parentFrame.getContentPane().getComponents();
+                    for (Component c : components) {
+                        if (c instanceof fantacalcio.gui.admin.panels.CalciatoriPanel calciatoriPanel) {
+                            calciatoriPanel.loadData();
+                        }
+                    }
                     parentFrame.notifySquadreChanged();
                     
                     // Mostra risultati finali

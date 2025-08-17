@@ -1,18 +1,40 @@
 package fantacalcio.gui.admin.panels;
 
-import fantacalcio.dao.CalciatoreDAO;
-import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
-import fantacalcio.model.Calciatore;
-import fantacalcio.model.SquadraSerieA;
-import fantacalcio.gui.MainFrame;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableRowSorter;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Map;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
+
+import fantacalcio.dao.CalciatoreDAO;
+import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
+import fantacalcio.gui.MainFrame;
+import fantacalcio.model.Calciatore;
+import fantacalcio.model.SquadraSerieA;
 
 public class CalciatoriPanel extends JPanel {
         
@@ -401,8 +423,8 @@ public class CalciatoriPanel extends JPanel {
             }
             
             // Crea calciatore con costo di default per ruolo
-            Calciatore nuovoCalciatore = new Calciatore(nome, cognome, ruolo);
-            
+            int costo = Integer.parseInt(txtCosto.getText().trim());
+            Calciatore nuovoCalciatore = new Calciatore(nome, cognome, ruolo, costo);            
             if (calciatoreDAO.inserisciCalciatore(nuovoCalciatore, squadra.getIdSquadraA())) {
                 JOptionPane.showMessageDialog(this, 
                     "Calciatore '" + nuovoCalciatore.getNomeCompleto() + "' aggiunto con successo!\nCosto: " + nuovoCalciatore.getCosto() + " crediti", 

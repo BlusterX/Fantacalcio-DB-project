@@ -1,19 +1,47 @@
 package fantacalcio.gui.user.panels;
 
-import fantacalcio.dao.SquadraFantacalcioDAO;
-import fantacalcio.dao.CalciatoreDAO;
-import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
-import fantacalcio.model.Utente;
-import fantacalcio.model.SquadraFantacalcio;
-import fantacalcio.model.Calciatore;
-import fantacalcio.gui.user.UserMainFrame;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableRowSorter;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.DefaultCellEditor;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSlider;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
+
+import fantacalcio.dao.CalciatoreDAO;
+import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
+import fantacalcio.dao.SquadraFantacalcioDAO;
+import fantacalcio.gui.user.UserMainFrame;
+import fantacalcio.model.Calciatore;
+import fantacalcio.model.SquadraFantacalcio;
+import fantacalcio.model.Utente;
 
 /**
  * Panel per la creazione di nuove squadre fantacalcio
@@ -166,7 +194,7 @@ public class CreateTeamPanel extends JPanel {
     }
     
     private void createSquadraInCostruzionePanel() {
-        lblBudgetRimanente = new JLabel("500 €");
+        lblBudgetRimanente = new JLabel("1000 €");
         lblGiocatoriTotali = new JLabel("0/25");
         lblPortieri = new JLabel("0/3");
         lblDifensori = new JLabel("0/8");
@@ -206,7 +234,7 @@ public class CreateTeamPanel extends JPanel {
         titleLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 24));
         titleLabel.setForeground(new Color(33, 150, 243));
         
-        JLabel instructionLabel = new JLabel("Scegli 25 giocatori (3P + 8D + 8C + 6A) con un budget di 500 crediti");
+        JLabel instructionLabel = new JLabel("Scegli 25 giocatori (3P + 8D + 8C + 6A) con un budget di 1000 crediti");
         instructionLabel.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 14));
         instructionLabel.setForeground(new Color(100, 100, 100));
         
