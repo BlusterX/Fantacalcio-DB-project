@@ -25,6 +25,7 @@ import javax.swing.SwingUtilities;
 
 import fantacalcio.gui.user.dialog.UserProfileDialog;
 import fantacalcio.gui.user.panels.CreateTeamPanel;
+import fantacalcio.gui.user.panels.JoinLeaguePanel;
 import fantacalcio.gui.user.panels.ManageTeamPanel;
 import fantacalcio.gui.user.panels.UserDashboardPanel;
 import fantacalcio.model.Utente;
@@ -39,6 +40,7 @@ public class UserMainFrame extends JFrame {
     // Componenti GUI
     private JTabbedPane tabbedPane;
     private UserDashboardPanel dashboardPanel;
+    private JoinLeaguePanel joinLeaguePanel;
     private CreateTeamPanel createTeamPanel;
     private ManageTeamPanel manageTeamPanel;
     
@@ -85,6 +87,14 @@ public class UserMainFrame extends JFrame {
         menuAccount.addSeparator();
         menuAccount.add(itemLogout);
         
+        // Menu Admin (solo se è admin)
+        JMenu menuAdmin = new JMenu("Admin");
+        
+        JMenuItem itemAdminPanel = new JMenuItem("Gestione Leghe");
+        itemAdminPanel.addActionListener(this::apriAdminPanel);
+        
+        menuAdmin.add(itemAdminPanel);
+        
         // Menu Aiuto
         JMenu menuAiuto = new JMenu("Aiuto");
         
@@ -98,6 +108,7 @@ public class UserMainFrame extends JFrame {
         menuAiuto.add(itemInfo);
         
         menuBar.add(menuAccount);
+        menuBar.add(menuAdmin);
         menuBar.add(Box.createHorizontalGlue());
         menuBar.add(menuAiuto);
         
@@ -152,11 +163,13 @@ public class UserMainFrame extends JFrame {
         
         // Crea i panel specializzati
         dashboardPanel = new UserDashboardPanel(this, utenteCorrente);
+        joinLeaguePanel = new JoinLeaguePanel(this, utenteCorrente);
         createTeamPanel = new CreateTeamPanel(this, utenteCorrente);
         manageTeamPanel = new ManageTeamPanel(this, utenteCorrente);
         
         // Aggiungi le tab con icone
         tabbedPane.addTab("🏠 Dashboard", dashboardPanel);
+        tabbedPane.addTab("🏆 Le mie Leghe", joinLeaguePanel);
         tabbedPane.addTab("⚽ Crea Squadra", createTeamPanel);
         tabbedPane.addTab("📝 Gestisci Squadre", manageTeamPanel);
         
@@ -169,9 +182,11 @@ public class UserMainFrame extends JFrame {
             switch (selectedIndex) {
                 case 0 -> // Dashboard
                     dashboardPanel.refreshData();
-                case 1 -> // Crea Squadra
+                case 1 -> // Join League
+                    joinLeaguePanel.refreshData();
+                case 2 -> // Crea Squadra
                     createTeamPanel.refreshData();
-                case 2 -> // Gestisci Squadre
+                case 3 -> // Gestisci Squadre
                     manageTeamPanel.refreshData();
             }
             updateTitle();
@@ -192,9 +207,10 @@ public class UserMainFrame extends JFrame {
     public void updateTitle() {
         int numSquadre = dashboardPanel.getNumeroSquadreUtente();
         int squadreComplete = dashboardPanel.getNumeroSquadreComplete();
+        int numLeghe = joinLeaguePanel.getNumLeghe();
         
-        setTitle(String.format("FantaCalcio - %s (%d squadre, %d complete)", 
-                              utenteCorrente.getNickname(), numSquadre, squadreComplete));
+        setTitle(String.format("FantaCalcio - %s (%d leghe, %d squadre, %d complete)", 
+                              utenteCorrente.getNickname(), numLeghe, numSquadre, squadreComplete));
     }
     
     /**
@@ -220,12 +236,33 @@ public class UserMainFrame extends JFrame {
         }
     }
     
+    private void apriAdminPanel(ActionEvent e) {
+        try {
+            // Crea il dialog admin con gestione leghe
+            fantacalcio.gui.admin.dialogs.AdminLeagueDialog adminDialog = 
+                new fantacalcio.gui.admin.dialogs.AdminLeagueDialog(this, utenteCorrente);
+            adminDialog.setVisible(true);
+            
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "Errore apertura admin panel: " + ex.getMessage(),
+                "Errore",
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     private void mostraRegole(ActionEvent e) {
         String regole = """
             📋 REGOLE DEL FANTACALCIO
             
             🏆 OBIETTIVO:
             Crea la tua squadra ideale scegliendo i migliori calciatori della Serie A!
+            
+            🎯 COME INIZIARE:
+            1. Unisciti a una lega usando il codice di accesso fornito dall'admin
+            2. Crea la tua squadra fantacalcio
+            3. Componi la formazione per ogni giornata
+            4. Sfida gli altri partecipanti!
             
             👥 COMPOSIZIONE SQUADRA:
             • 3 Portieri
@@ -271,6 +308,12 @@ public class UserMainFrame extends JFrame {
             Un progetto per creare e gestire
             le tue squadre fantacalcio ideali!
             
+            🎮 CARATTERISTICHE:
+            • Sistema di leghe con codici di accesso
+            • Gestione squadre e formazioni
+            • Interfaccia utente intuitiva
+            • Gestione admin per le leghe
+            
             Buon divertimento! ⚽
             """;
         
@@ -283,19 +326,28 @@ public class UserMainFrame extends JFrame {
     public void notifySquadraCreata() {
         dashboardPanel.refreshData();
         manageTeamPanel.refreshData();
+        joinLeaguePanel.refreshData();
         updateTitle();
         
         // Passa alla tab di gestione squadre
-        tabbedPane.setSelectedIndex(2);
+        tabbedPane.setSelectedIndex(3);
     }
     
     public void notifySquadraModificata() {
         dashboardPanel.refreshData();
         manageTeamPanel.refreshData();
+        joinLeaguePanel.refreshData();
         updateTitle();
     }
     
     public void notifySquadraEliminata() {
+        dashboardPanel.refreshData();
+        joinLeaguePanel.refreshData();
+        updateTitle();
+    }
+    
+    public void notifyLegaJoined() {
+        joinLeaguePanel.refreshData();
         dashboardPanel.refreshData();
         updateTitle();
     }
@@ -308,10 +360,14 @@ public class UserMainFrame extends JFrame {
     }
     
     public void switchToCreateTeam() {
-        tabbedPane.setSelectedIndex(1);
+        tabbedPane.setSelectedIndex(2);
     }
     
     public void switchToManageTeams() {
-        tabbedPane.setSelectedIndex(2);
+        tabbedPane.setSelectedIndex(3);
+    }
+    
+    public void switchToLeagues() {
+        tabbedPane.setSelectedIndex(1);
     }
 }

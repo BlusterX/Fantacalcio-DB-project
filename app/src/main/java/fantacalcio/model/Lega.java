@@ -11,19 +11,22 @@ public class Lega {
     private int idLega;
     private String nome;
     private String codiceAccesso;
+    private int idAdmin;
     
     // Costruttori
     public Lega() {}
     
-    public Lega(String nome) {
+    public Lega(String nome, int idAdmin) {
         this.nome = nome;
+        this.idAdmin = idAdmin;
         this.codiceAccesso = generaCodiceAccesso();
     }
     
-    public Lega(int idLega, String nome, String codiceAccesso) {
+    public Lega(int idLega, String nome, String codiceAccesso, int idAdmin) {
         this.idLega = idLega;
         this.nome = nome;
         this.codiceAccesso = codiceAccesso;
+        this.idAdmin = idAdmin;
     }
     
     // Getters e Setters
@@ -49,6 +52,14 @@ public class Lega {
     
     public void setCodiceAccesso(String codiceAccesso) {
         this.codiceAccesso = codiceAccesso;
+    }
+    
+    public int getIdAdmin() {
+        return idAdmin;
+    }
+    
+    public void setIdAdmin(int idAdmin) {
+        this.idAdmin = idAdmin;
     }
     
     // Metodi di utilità

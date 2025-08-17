@@ -1,16 +1,37 @@
 package fantacalcio.gui.user;
 
-import fantacalcio.dao.UtenteDAO;
-import fantacalcio.gui.user.dialog.UserRegistrationDialog;
-import fantacalcio.model.Utente;
-
-import javax.swing.*;
-
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Optional;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.Timer;
+import javax.swing.UIManager;
+
+import fantacalcio.dao.UtenteDAO;
+import fantacalcio.gui.user.dialog.UserRegistrationDialog;
+import fantacalcio.model.Utente;
 
 /**
  * Finestra di login per gli utenti del fantacalcio
@@ -22,7 +43,7 @@ public class UserLoginFrame extends JFrame {
     // Componenti GUI
     private JTextField txtNickname;
     private JPasswordField txtPassword;
-    private JButton btnLogin, btnRegistrati, btnAdmin;
+    private JButton btnLogin, btnRegistrati;
     private JLabel lblStatus;
     
     public UserLoginFrame() {
@@ -52,7 +73,6 @@ public class UserLoginFrame extends JFrame {
         // Pulsanti
         btnLogin = new JButton("Accedi");
         btnRegistrati = new JButton("Registrati");
-        btnAdmin = new JButton("Admin Panel");
         
         // Label di stato
         lblStatus = new JLabel(" ");
@@ -77,13 +97,6 @@ public class UserLoginFrame extends JFrame {
         btnRegistrati.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
         btnRegistrati.setFocusPainted(false);
         btnRegistrati.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        btnAdmin.setBackground(new Color(158, 158, 158));
-        btnAdmin.setForeground(Color.WHITE);
-        btnAdmin.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-        btnAdmin.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        btnAdmin.setFocusPainted(false);
-        btnAdmin.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
         // Stile campi di input
         txtNickname.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
@@ -120,11 +133,6 @@ public class UserLoginFrame extends JFrame {
         // Pannello pulsanti
         JPanel buttonPanel = createButtonPanel();
         
-        // Pannello admin (piccolo, in basso)
-        JPanel adminPanel = new JPanel(new FlowLayout());
-        adminPanel.setBackground(Color.WHITE);
-        adminPanel.add(btnAdmin);
-        
         // Assembla layout
         mainPanel.add(titleLabel);
         mainPanel.add(Box.createVerticalStrut(5));
@@ -135,8 +143,6 @@ public class UserLoginFrame extends JFrame {
         mainPanel.add(buttonPanel);
         mainPanel.add(Box.createVerticalStrut(10));
         mainPanel.add(lblStatus);
-        mainPanel.add(Box.createVerticalStrut(20));
-        mainPanel.add(adminPanel);
         
         add(mainPanel, BorderLayout.CENTER);
     }
@@ -206,7 +212,6 @@ public class UserLoginFrame extends JFrame {
         // Event listeners pulsanti
         btnLogin.addActionListener(this::loginAction);
         btnRegistrati.addActionListener(this::registratiAction);
-        btnAdmin.addActionListener(this::adminAction);
     }
     
     private void loginAction(ActionEvent e) {
@@ -215,10 +220,6 @@ public class UserLoginFrame extends JFrame {
     
     private void registratiAction(ActionEvent e) {
         apriDialogRegistrazione();
-    }
-    
-    private void adminAction(ActionEvent e) {
-        apriAdminPanel();
     }
     
     /**
@@ -289,23 +290,6 @@ public class UserLoginFrame extends JFrame {
             txtNickname.setText(dialog.getRegisteredNickname());
             txtPassword.requestFocus();
             mostraSuccesso("Registrazione completata! Ora puoi effettuare l'accesso.");
-        }
-    }
-    
-    /**
-     * Apre l'admin panel
-     */
-    private void apriAdminPanel() {
-        try {
-            // Importa e crea MainFrame admin
-            fantacalcio.gui.MainFrame adminFrame = new fantacalcio.gui.MainFrame();
-            adminFrame.setVisible(true);
-            
-            // Chiudi questa finestra
-            dispose();
-            
-        } catch (Exception ex) {
-            mostraErrore("Errore apertura admin panel: " + ex.getMessage());
         }
     }
     
