@@ -6,6 +6,7 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -21,11 +22,13 @@ import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 
 import fantacalcio.dao.SquadraFantacalcioDAO;
 import fantacalcio.gui.user.UserMainFrame;
+import fantacalcio.gui.user.dialog.FormationManagementDialog;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
@@ -121,6 +124,31 @@ public class ManageTeamPanel extends JPanel {
         tabellaGiocatori.getColumnModel().getColumn(2).setPreferredWidth(100); // Cognome
         tabellaGiocatori.getColumnModel().getColumn(3).setPreferredWidth(150); // Squadra
         tabellaGiocatori.getColumnModel().getColumn(4).setPreferredWidth(70);  // Costo
+
+        tabellaGiocatori.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2 && squadraSelezionata != null) {
+                    aprireGestioneFormazione();
+                }
+            }
+        });
+    }
+    
+    private void aprireGestioneFormazione() {
+        if (squadraSelezionata == null) {
+            JOptionPane.showMessageDialog(this,
+                "Seleziona prima una squadra.",
+                "Nessuna squadra selezionata",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Window parent = SwingUtilities.getWindowAncestor(this);
+        FormationManagementDialog dialog =
+                new FormationManagementDialog(parent, squadraSelezionata, utenteCorrente);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
     
     private void createButtons() {
