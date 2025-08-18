@@ -68,7 +68,7 @@ public class UserMainFrame extends JFrame {
         createTabbedPane();
         
         pack();
-        setExtendedState(JFrame.MAXIMIZED_BOTH); // Apri a schermo intero
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
     }
     
     /**
@@ -91,9 +91,9 @@ public class UserMainFrame extends JFrame {
         menuAccount.add(itemLogout);
         
         // Menu Admin - SEMPRE VISIBILE per tutti gli utenti
-        JMenu menuAdmin = new JMenu("Gestione Leghe");
+        JMenu menuAdmin = new JMenu("Admin leghe");
         
-        JMenuItem itemAdminPanel = new JMenuItem("Le mie Leghe Admin");
+        JMenuItem itemAdminPanel = new JMenuItem("Gestione delle leghe create");
         itemAdminPanel.addActionListener(this::apriAdminPanel);
         
         menuAdmin.add(itemAdminPanel);

@@ -23,16 +23,20 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 
+import fantacalcio.dao.FormazioneDAO;
 import fantacalcio.dao.LegaDAO;
 import fantacalcio.dao.ScontroLegaDAO;
 import fantacalcio.dao.SquadraFantacalcioDAO;
 import fantacalcio.gui.user.UserMainFrame;
 import fantacalcio.gui.user.dialog.FormationManagementDialog;
 import fantacalcio.gui.user.dialog.RisultatiLegaDialog;
+import fantacalcio.model.Calciatore;
+import fantacalcio.model.Formazione;
 import fantacalcio.model.Lega;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
@@ -201,16 +205,7 @@ public class LeagueDetailPanel extends JPanel {
             btnRisultati.addActionListener(e -> mostraRisultati());
             rightInfo.add(btnRisultati);
         }
-        
-        // Se l'utente è admin, aggiungi pulsante per avviare lega
-        if (isUserAdmin()) {
-            JButton btnAvviaLega = new JButton("🚀 Avvia Lega");
-            styleButton(btnAvviaLega, new Color(76, 175, 80));
-            btnAvviaLega.addActionListener(e -> avviaLega());
-            btnAvviaLega.setEnabled("CREATA".equals(statoLega));
-            rightInfo.add(btnAvviaLega);
-        }
-        
+
         infoPanel.add(leftInfo, BorderLayout.WEST);
         infoPanel.add(rightInfo, BorderLayout.EAST);
         
@@ -256,18 +251,89 @@ public class LeagueDetailPanel extends JPanel {
         formazionePanel.setBorder(BorderFactory.createTitledBorder("⚽ Gestione Formazione"));
         
         JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        infoPanel.add(new JLabel("Imposta la tua formazione per la prossima giornata:"));
         
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnGestisciFormazione = new JButton("⚙️ Gestisci Formazione");
-        styleButton(btnGestisciFormazione, new Color(76, 175, 80));
-        btnGestisciFormazione.addActionListener(e -> apriGestioneFormazione());
-        buttonPanel.add(btnGestisciFormazione);
+        // Controllo se la formazione è già stata salvata per la giornata corrente
+        int giornataCorrente = scontroDAO.getGiornataCorrente(lega.getIdLega());
+        boolean formazioneEsiste = verificaFormazioneEsistente(giornataCorrente);
         
-        formazionePanel.add(infoPanel, BorderLayout.WEST);
-        formazionePanel.add(buttonPanel, BorderLayout.EAST);
+        if (formazioneEsiste) {
+            infoPanel.add(new JLabel("✅ Formazione salvata per la giornata " + giornataCorrente));
+            
+            JButton btnModificaFormazione = new JButton("✏️ Modifica Formazione");
+            styleButton(btnModificaFormazione, new Color(255, 152, 0));
+            btnModificaFormazione.addActionListener(e -> apriGestioneFormazione());
+            
+            JButton btnVisualizzaFormazione = new JButton("👁️ Visualizza");
+            styleButton(btnVisualizzaFormazione, new Color(158, 158, 158));
+            btnVisualizzaFormazione.addActionListener(e -> visualizzaFormazione());
+            
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            buttonPanel.add(btnVisualizzaFormazione);
+            buttonPanel.add(btnModificaFormazione);
+            
+            formazionePanel.add(infoPanel, BorderLayout.WEST);
+            formazionePanel.add(buttonPanel, BorderLayout.EAST);
+        } else {
+            infoPanel.add(new JLabel("⚠️ Nessuna formazione impostata per la giornata " + giornataCorrente));
+            
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton btnCreaFormazione = new JButton("⚙️ Crea Formazione");
+            styleButton(btnCreaFormazione, new Color(76, 175, 80));
+            btnCreaFormazione.addActionListener(e -> apriGestioneFormazione());
+            buttonPanel.add(btnCreaFormazione);
+            
+            formazionePanel.add(infoPanel, BorderLayout.WEST);
+            formazionePanel.add(buttonPanel, BorderLayout.EAST);
+        }
         
         return formazionePanel;
+    }
+
+    private boolean verificaFormazioneEsistente(int giornata) {
+        FormazioneDAO formazioneDAO = new FormazioneDAO();
+        Integer idFormazione = formazioneDAO.getFormazioneSquadraGiornata(
+            squadraUtente.getIdSquadraFantacalcio(), giornata);
+        return idFormazione != null;
+    }
+
+    private void visualizzaFormazione() {
+        int giornataCorrente = scontroDAO.getGiornataCorrente(lega.getIdLega());
+        FormazioneDAO formazioneDAO = new FormazioneDAO();
+        Integer idFormazione = formazioneDAO.getFormazioneSquadraGiornata(
+            squadraUtente.getIdSquadraFantacalcio(), giornataCorrente);
+        
+        if (idFormazione != null) {
+            Formazione formazione = formazioneDAO.getFormazioneById(idFormazione);
+            List<Calciatore> titolari = formazioneDAO.trovaTitolari(idFormazione);
+            List<Calciatore> panchinari = formazioneDAO.trovaPanchinari(idFormazione);
+            
+            StringBuilder info = new StringBuilder();
+            info.append("🏆 FORMAZIONE GIORNATA ").append(giornataCorrente).append("\n\n");
+            info.append("📐 Modulo: ").append(formazione.getModulo()).append("\n\n");
+            
+            info.append("⭐ TITOLARI (").append(titolari.size()).append("):\n");
+            for (Calciatore c : titolari) {
+                info.append("• ").append(c.getRuolo().getAbbreviazione())
+                    .append(" ").append(c.getNomeCompleto()).append("\n");
+            }
+            
+            info.append("\n🪑 PANCHINA (").append(panchinari.size()).append("):\n");
+            for (Calciatore c : panchinari) {
+                info.append("• ").append(c.getRuolo().getAbbreviazione())
+                    .append(" ").append(c.getNomeCompleto()).append("\n");
+            }
+            
+            JTextArea textArea = new JTextArea(info.toString());
+            textArea.setEditable(false);
+            textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+            
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            scrollPane.setPreferredSize(new Dimension(400, 300));
+            
+            JOptionPane.showMessageDialog(this, scrollPane, 
+                "Formazione - " + squadraUtente.getNomeSquadra(), 
+                JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 
     private void caricaSquadreLega(DefaultTableModel model) {
@@ -319,75 +385,6 @@ public class LeagueDetailPanel extends JPanel {
             scontroDAO.getGiornataCorrente(lega.getIdLega())
         );
         dialog.setVisible(true);
-    }
-
-    private boolean isUserAdmin() {
-        // Verifica se l'utente corrente è admin di questa lega
-        List<Lega> legheAdmin = legaDAO.trovaLeghePerAdmin(utenteCorrente.getIdUtente());
-        return legheAdmin.stream().anyMatch(l -> l.getIdLega() == lega.getIdLega());
-    }
-
-    private void avviaLega() {
-        if (!scontroDAO.verificaAvvioLega(lega.getIdLega())) {
-            JOptionPane.showMessageDialog(this,
-                "La lega non può essere avviata!\n" +
-                "Requisiti: 2-12 squadre complete, numero pari.",
-                "Impossibile Avviare",
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        int conferma = JOptionPane.showConfirmDialog(this,
-            "Sei sicuro di voler avviare la lega?\n" +
-            "Una volta avviata, nessuno potrà più unirsi e inizieranno le partite!",
-            "Conferma Avvio Lega",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (conferma == JOptionPane.YES_OPTION) {
-            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
-                @Override
-                protected Boolean doInBackground() throws Exception {
-                    // Ottieni tutte le squadre complete della lega
-                    List<Integer> squadreIds = getSquadreCompleteLega(lega.getIdLega());
-                    
-                    // Genera calendario
-                    boolean calendarioGenerato = scontroDAO.generaCalendario(lega.getIdLega(), squadreIds);
-                    if (!calendarioGenerato) return false;
-                    
-                    // Avvia la lega
-                    return scontroDAO.avviaLega(lega.getIdLega());
-                }
-                
-                @Override
-                protected void done() {
-                    try {
-                        boolean successo = get();
-                        if (successo) {
-                            JOptionPane.showMessageDialog(LeagueDetailPanel.this,
-                                "Lega avviata con successo!\n" +
-                                "Il calendario è stato generato!",
-                                "Lega Avviata",
-                                JOptionPane.INFORMATION_MESSAGE);
-                            
-                            // Ricarica la vista
-                            showTeamManagement();
-                        } else {
-                            JOptionPane.showMessageDialog(LeagueDetailPanel.this,
-                                "Errore durante l'avvio della lega.",
-                                "Errore",
-                                JOptionPane.ERROR_MESSAGE);
-                        }
-                    } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(LeagueDetailPanel.this,
-                            "Errore: " + ex.getMessage(),
-                            "Errore",
-                            JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            };
-            worker.execute();
-        }
     }
 
     private List<Integer> getSquadreCompleteLega(int idLega) {

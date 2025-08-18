@@ -40,7 +40,7 @@ public class SquadrePanel extends JPanel {
     private JTable tabellaSquadre;
     private DefaultTableModel modelTabella;
     private JTextField txtNomeSquadra;
-    private JButton btnAggiungi, btnPopola, btnElimina, btnRefresh;
+    private JButton btnAggiungi, btnElimina, btnRefresh;
     
     public SquadrePanel(MainFrame parentFrame) {
         this.parentFrame = parentFrame;
@@ -62,7 +62,7 @@ public class SquadrePanel extends JPanel {
     }
     
     private void createTable() {
-        String[] colonne = {"ID", "Nome Squadra", "Numero Calciatori"};
+        String[] colonne = {"Nome Squadra", "Numero Calciatori"};
         modelTabella = new DefaultTableModel(colonne, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -92,23 +92,19 @@ public class SquadrePanel extends JPanel {
     
     private void createButtons() {
         btnAggiungi = new JButton("Aggiungi Squadra");
-        btnPopola = new JButton("Popola Serie A");
         btnElimina = new JButton("Elimina");
         btnRefresh = new JButton("Aggiorna");
         
         // Stile pulsanti
         styleButton(btnAggiungi, new Color(76, 175, 80));   // Verde
-        styleButton(btnPopola, new Color(33, 150, 243));    // Blu
         styleButton(btnElimina, new Color(244, 67, 54));    // Rosso
         styleButton(btnRefresh, new Color(158, 158, 158));  // Grigio
         
         // Tooltip informativi
-        btnPopola.setToolTipText("Inserisce automaticamente tutte le 20 squadre di Serie A");
         btnElimina.setToolTipText("Elimina la squadra selezionata e tutti i suoi calciatori");
         
         // Event listeners
         btnAggiungi.addActionListener(this::aggiungiSquadra);
-        btnPopola.addActionListener(this::popolaSerieA);
         btnElimina.addActionListener(this::eliminaSquadra);
         btnRefresh.addActionListener(e -> loadData());
     }
@@ -130,14 +126,13 @@ public class SquadrePanel extends JPanel {
         // Pannello pulsanti
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(btnAggiungi);
-        buttonPanel.add(btnPopola);
         buttonPanel.add(btnElimina);
         buttonPanel.add(btnRefresh);
         
         // Seconda riga di pulsanti per setup completo
         JPanel setupPanel = new JPanel(new FlowLayout());
         JButton btnSetupCompleto = new JButton("Setup Completo Serie A");
-        styleButton(btnSetupCompleto, new Color(156, 39, 176)); // Viola
+        styleButton(btnSetupCompleto, new Color(156, 39, 176));
         btnSetupCompleto.setToolTipText("Inserisce squadre + giocatori famosi automaticamente");
         btnSetupCompleto.addActionListener(this::setupCompletoSerieA);
         setupPanel.add(btnSetupCompleto);
@@ -207,8 +202,8 @@ public class SquadrePanel extends JPanel {
     
     private void updateStats(int numSquadre, int totalCalciatori) {
         Component statsPanel = ((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.EAST);
-        if (statsPanel instanceof JPanel) {
-            Component[] components = ((JPanel) statsPanel).getComponents();
+        if (statsPanel instanceof JPanel jPanel) {
+            Component[] components = jPanel.getComponents();
             if (components.length >= 6) {
                 ((JLabel) components[1]).setText("Squadre: " + numSquadre);
                 ((JLabel) components[3]).setText("Tot. Calciatori: " + totalCalciatori);
@@ -266,66 +261,6 @@ public class SquadrePanel extends JPanel {
         }
     }
     
-    private void popolaSerieA(ActionEvent e) {
-        // Controlla se ci sono già squadre
-        int numSquadre = squadraDAO.contaSquadre();
-        if (numSquadre > 0) {
-            int risposta = JOptionPane.showConfirmDialog(this, 
-                "Ci sono già " + numSquadre + " squadre nel database.\n" +
-                "Vuoi comunque procedere con il popolamento?\n" +
-                "(Le squadre duplicate non verranno inserite)", 
-                "Conferma Popolamento", 
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
-            
-            if (risposta != JOptionPane.YES_OPTION) {
-                return;
-            }
-        }
-        
-        // Mostra dialog di conferma con anteprima
-        String message = "Verranno inserite le seguenti squadre di Serie A 2024/25:\n\n" +
-                        "AC Milan, Inter, Juventus, Napoli, AS Roma, Lazio,\n" +
-                        "Atalanta, Fiorentina, Bologna, Torino, Udinese,\n" +
-                        "Sassuolo, Empoli, Verona, Salernitana, Genoa,\n" +
-                        "Cagliari, Frosinone, Lecce, Monza\n\n" +
-                        "Procedere?";
-        
-        int conferma = JOptionPane.showConfirmDialog(this, 
-            message, 
-            "Conferma Popolamento Serie A", 
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (conferma == JOptionPane.YES_OPTION) {
-            // Usa SwingWorker per non bloccare l'interfaccia
-            SwingWorker<Void, String> worker = new SwingWorker<Void, String>() {
-                @Override
-                protected Void doInBackground() throws Exception {
-                    publish("Popolamento in corso...");
-                    squadraDAO.popolaSquadreSerieA();
-                    return null;
-                }
-                
-                @Override
-                protected void process(List<String> chunks) {
-                    // Qui potresti aggiornare una progress bar
-                }
-                
-                @Override
-                protected void done() {
-                    loadData();
-                    JOptionPane.showMessageDialog(SquadrePanel.this, 
-                        "Database popolato con successo!\nControlla la tabella per vedere le squadre inserite.", 
-                        "Popolamento Completato", 
-                        JOptionPane.INFORMATION_MESSAGE);
-                }
-            };
-            
-            worker.execute();
-        }
-    }
-    
     private void eliminaSquadra(ActionEvent e) {
         int rigaSelezionata = tabellaSquadre.getSelectedRow();
         if (rigaSelezionata < 0) {
@@ -380,9 +315,9 @@ public class SquadrePanel extends JPanel {
         
         String message = "Setup Completo Serie A 2024/25\n\n";
         message += "Questo inserirà automaticamente:\n";
-        message += "• 20 squadre di Serie A\n";
-        message += "• ~50 giocatori famosi con ruoli e squadre\n";
-        message += "• Costi automatici per ogni giocatore\n\n";
+        message += " 20 squadre di Serie A\n";
+        message += " Molti giocatori di quella annata\n";
+        message += " Costi automatici per ogni giocatore\n\n";
         
         if (numSquadre > 0 || numCalciatori > 0) {
             message += "ATTENZIONE: Ci sono già " + numSquadre + " squadre e " + numCalciatori + " calciatori.\n";

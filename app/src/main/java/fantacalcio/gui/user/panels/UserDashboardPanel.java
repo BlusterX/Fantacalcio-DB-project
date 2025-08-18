@@ -2,18 +2,15 @@ package fantacalcio.gui.user.panels;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -115,8 +112,6 @@ public class UserDashboardPanel extends JPanel {
     }
     
     private void setupLayout() {
-        // Pannello statistiche in alto
-        JPanel statsPanel = createStatsLayout();
         
         // Pannello tabella al centro
         JPanel tablePanel = new JPanel(new BorderLayout());
@@ -131,57 +126,8 @@ public class UserDashboardPanel extends JPanel {
         actionsPanel.add(btnGestisciLeghe);
         
         // Layout finale
-        add(statsPanel, BorderLayout.NORTH);
         add(tablePanel, BorderLayout.CENTER);
         add(actionsPanel, BorderLayout.SOUTH);
-    }
-    
-    private JPanel createStatsLayout() {
-        JPanel statsPanel = new JPanel(new GridLayout(1, 4, 20, 0));
-        statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
-        
-        // Card per numero squadre
-        JPanel cardSquadre = createStatCard("🏆 Squadre Totali", lblNumSquadre, new Color(33, 150, 243));
-        
-        // Card per squadre complete
-        JPanel cardComplete = createStatCard("✅ Squadre Complete", lblSquadreComplete, new Color(76, 175, 80));
-        
-        // Card per budget totale speso
-        JPanel cardBudget = createStatCard("💰 Budget Speso", lblBudgetTotale, new Color(255, 152, 0));
-        
-        // Card per ultima attività
-        JPanel cardAttivita = createStatCard("🕒 Ultima Attività", lblUltimaAttivita, new Color(156, 39, 176));
-        
-        statsPanel.add(cardSquadre);
-        statsPanel.add(cardComplete);
-        statsPanel.add(cardBudget);
-        statsPanel.add(cardAttivita);
-        
-        return statsPanel;
-    }
-    
-    private JPanel createStatCard(String titolo, JLabel valore, Color colore) {
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(colore, 2),
-            BorderFactory.createEmptyBorder(15, 15, 15, 15)
-        ));
-        
-        JLabel titoloLabel = new JLabel(titolo);
-        titoloLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        titoloLabel.setForeground(colore);
-        titoloLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        valore.setForeground(colore);
-        valore.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        card.add(titoloLabel);
-        card.add(Box.createVerticalStrut(10));
-        card.add(valore);
-        
-        return card;
     }
     
     public void refreshData() {
@@ -197,7 +143,7 @@ public class UserDashboardPanel extends JPanel {
                     List<SquadraFantacalcio> squadre = get();
                     updateTable(squadre);
                     updateStats(squadre);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException e) {
                     JOptionPane.showMessageDialog(UserDashboardPanel.this,
                         "Errore nel caricamento dei dati: " + e.getMessage(),
                         "Errore",
