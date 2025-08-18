@@ -1,17 +1,34 @@
 package fantacalcio.gui.user.panels;
 
-import fantacalcio.dao.SquadraFantacalcioDAO;
-import fantacalcio.model.Utente;
-import fantacalcio.model.SquadraFantacalcio;
-import fantacalcio.model.Calciatore;
-import fantacalcio.gui.user.UserMainFrame;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+
+import fantacalcio.dao.SquadraFantacalcioDAO;
+import fantacalcio.gui.user.UserMainFrame;
+import fantacalcio.model.Calciatore;
+import fantacalcio.model.SquadraFantacalcio;
+import fantacalcio.model.Utente;
 
 /**
  * Panel per la gestione delle squadre fantacalcio esistenti
@@ -392,8 +409,7 @@ public class ManageTeamPanel extends JPanel {
                                 JOptionPane.INFORMATION_MESSAGE);
                             
                             refreshData();
-                            parentFrame.notifySquadraModificata();
-                            
+                            parentFrame.updateTitle();
                         } else {
                             JOptionPane.showMessageDialog(ManageTeamPanel.this,
                                 "Errore durante l'aggiornamento del nome.",

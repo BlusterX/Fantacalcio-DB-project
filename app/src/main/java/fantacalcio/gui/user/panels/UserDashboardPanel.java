@@ -1,15 +1,33 @@
 package fantacalcio.gui.user.panels;
 
-import fantacalcio.dao.SquadraFantacalcioDAO;
-import fantacalcio.model.Utente;
-import fantacalcio.model.SquadraFantacalcio;
-import fantacalcio.gui.user.UserMainFrame;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+
+import fantacalcio.dao.SquadraFantacalcioDAO;
+import fantacalcio.gui.user.UserMainFrame;
+import fantacalcio.model.SquadraFantacalcio;
+import fantacalcio.model.Utente;
 
 /**
  * Panel dashboard per l'utente - panoramica delle squadre e statistiche
@@ -24,8 +42,7 @@ public class UserDashboardPanel extends JPanel {
     private JTable tabellaSquadre;
     private DefaultTableModel modelTabella;
     private JLabel lblNumSquadre, lblSquadreComplete, lblBudgetTotale, lblUltimaAttivita;
-    private JButton btnCreaSquadra, btnGestisciSquadre;
-    
+    private JButton btnGestisciLeghe;    
     // Statistiche
     private int numeroSquadreUtente = 0;
     private int numeroSquadreComplete = 0;
@@ -90,16 +107,11 @@ public class UserDashboardPanel extends JPanel {
     }
     
     private void createQuickActionsPanel() {
-        btnCreaSquadra = new JButton("🆕 Crea Nuova Squadra");
-        btnGestisciSquadre = new JButton("📝 Gestisci Squadre");
-        
-        // Stile pulsanti
-        styleButton(btnCreaSquadra, new Color(76, 175, 80));
-        styleButton(btnGestisciSquadre, new Color(33, 150, 243));
-        
-        // Event listeners
-        btnCreaSquadra.addActionListener(e -> parentFrame.switchToCreateTeam());
-        btnGestisciSquadre.addActionListener(e -> parentFrame.switchToManageTeams());
+
+        btnGestisciLeghe = new JButton("🏆 Le mie Leghe");
+        styleButton(btnGestisciLeghe, new Color(33, 150, 243));
+        btnGestisciLeghe.addActionListener(e -> parentFrame.switchToLeagues());
+
     }
     
     private void setupLayout() {
@@ -114,11 +126,9 @@ public class UserDashboardPanel extends JPanel {
         scrollPane.setPreferredSize(new Dimension(800, 300));
         tablePanel.add(scrollPane, BorderLayout.CENTER);
         
-        // Pannello azioni in basso
+        // Pannello azioni in basso - SOLO con il pulsante leghe
         JPanel actionsPanel = new JPanel(new FlowLayout());
-        actionsPanel.add(btnCreaSquadra);
-        actionsPanel.add(Box.createHorizontalStrut(20));
-        actionsPanel.add(btnGestisciSquadre);
+        actionsPanel.add(btnGestisciLeghe);
         
         // Layout finale
         add(statsPanel, BorderLayout.NORTH);

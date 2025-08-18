@@ -26,8 +26,10 @@ import javax.swing.SwingUtilities;
 import fantacalcio.gui.user.dialog.UserProfileDialog;
 import fantacalcio.gui.user.panels.CreateTeamPanel;
 import fantacalcio.gui.user.panels.JoinLeaguePanel;
+import fantacalcio.gui.user.panels.LeagueDetailPanel;
 import fantacalcio.gui.user.panels.ManageTeamPanel;
 import fantacalcio.gui.user.panels.UserDashboardPanel;
+import fantacalcio.model.Lega;
 import fantacalcio.model.Utente;
 
 /**
@@ -43,7 +45,8 @@ public class UserMainFrame extends JFrame {
     private JoinLeaguePanel joinLeaguePanel;
     private CreateTeamPanel createTeamPanel;
     private ManageTeamPanel manageTeamPanel;
-    
+    private JPanel mainContentPanel; // Per gestire il contenuto principale
+    private boolean inLeagueDetail = false;
     // Menu
     private JMenuBar menuBar;
     
@@ -87,10 +90,10 @@ public class UserMainFrame extends JFrame {
         menuAccount.addSeparator();
         menuAccount.add(itemLogout);
         
-        // Menu Admin (solo se è admin)
-        JMenu menuAdmin = new JMenu("Admin");
+        // Menu Admin - SEMPRE VISIBILE per tutti gli utenti
+        JMenu menuAdmin = new JMenu("Gestione Leghe");
         
-        JMenuItem itemAdminPanel = new JMenuItem("Gestione Leghe");
+        JMenuItem itemAdminPanel = new JMenuItem("Le mie Leghe Admin");
         itemAdminPanel.addActionListener(this::apriAdminPanel);
         
         menuAdmin.add(itemAdminPanel);
@@ -108,7 +111,7 @@ public class UserMainFrame extends JFrame {
         menuAiuto.add(itemInfo);
         
         menuBar.add(menuAccount);
-        menuBar.add(menuAdmin);
+        menuBar.add(menuAdmin); // Sempre visibile
         menuBar.add(Box.createHorizontalGlue());
         menuBar.add(menuAiuto);
         
@@ -159,40 +162,39 @@ public class UserMainFrame extends JFrame {
      * Crea le tab con i panel dedicati
      */
     private void createTabbedPane() {
+        // Crea il pannello principale che conterrà o le tab o il dettaglio lega
+        mainContentPanel = new JPanel(new BorderLayout());
+        
         tabbedPane = new JTabbedPane();
         
-        // Crea i panel specializzati
+        // Crea SOLO i panel necessari
         dashboardPanel = new UserDashboardPanel(this, utenteCorrente);
         joinLeaguePanel = new JoinLeaguePanel(this, utenteCorrente);
-        createTeamPanel = new CreateTeamPanel(this, utenteCorrente);
-        manageTeamPanel = new ManageTeamPanel(this, utenteCorrente);
+        // RIMUOVERE: createTeamPanel e manageTeamPanel
         
-        // Aggiungi le tab con icone
+        // Aggiungi SOLO le tab necessarie
         tabbedPane.addTab("🏠 Dashboard", dashboardPanel);
         tabbedPane.addTab("🏆 Le mie Leghe", joinLeaguePanel);
-        tabbedPane.addTab("⚽ Crea Squadra", createTeamPanel);
-        tabbedPane.addTab("📝 Gestisci Squadre", manageTeamPanel);
+        // RIMUOVERE: le tab di creazione e gestione squadre
         
         // Stile delle tab
         tabbedPane.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         
-        // Event listener per aggiornare i dati quando si cambia tab
+        // Event listener semplificato
         tabbedPane.addChangeListener(e -> {
-            int selectedIndex = tabbedPane.getSelectedIndex();
-            switch (selectedIndex) {
-                case 0 -> // Dashboard
-                    dashboardPanel.refreshData();
-                case 1 -> // Join League
-                    joinLeaguePanel.refreshData();
-                case 2 -> // Crea Squadra
-                    createTeamPanel.refreshData();
-                case 3 -> // Gestisci Squadre
-                    manageTeamPanel.refreshData();
+            if (!inLeagueDetail) {
+                int selectedIndex = tabbedPane.getSelectedIndex();
+                switch (selectedIndex) {
+                    case 0 -> dashboardPanel.refreshData();
+                    case 1 -> joinLeaguePanel.refreshData();
+                }
+                updateTitle();
             }
-            updateTitle();
         });
         
-        add(tabbedPane, BorderLayout.CENTER);
+        // Inizialmente mostra le tab
+        mainContentPanel.add(tabbedPane, BorderLayout.CENTER);
+        add(mainContentPanel, BorderLayout.CENTER);
         
         // Carica i dati iniziali
         SwingUtilities.invokeLater(() -> {
@@ -200,17 +202,87 @@ public class UserMainFrame extends JFrame {
             updateTitle();
         });
     }
+
+    public void openLeagueDetail(Lega lega) {
+        inLeagueDetail = true;
+        
+        // Rimuovi il contenuto attuale
+        mainContentPanel.removeAll();
+        
+        // Crea il panel per il dettaglio della lega
+        LeagueDetailPanel leagueDetailPanel = new LeagueDetailPanel(this, utenteCorrente, lega);
+        
+        // Crea un panel wrapper con pulsante "Torna alle leghe"
+        JPanel wrapperPanel = new JPanel(new BorderLayout());
+        
+        // Header con pulsante back
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JButton btnBack = new JButton("← Torna alle Leghe");
+        btnBack.setBackground(new Color(158, 158, 158));
+        btnBack.setForeground(Color.WHITE);
+        btnBack.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        btnBack.setFocusPainted(false);
+        btnBack.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnBack.addActionListener(e -> backToMainView());
+        
+        JLabel leagueTitle = new JLabel("🏆 " + lega.getNome() + " (" + lega.getCodiceAccesso() + ")");
+        leagueTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        leagueTitle.setForeground(new Color(33, 150, 243));
+        
+        headerPanel.add(btnBack, BorderLayout.WEST);
+        headerPanel.add(leagueTitle, BorderLayout.CENTER);
+        
+        wrapperPanel.add(headerPanel, BorderLayout.NORTH);
+        wrapperPanel.add(leagueDetailPanel, BorderLayout.CENTER);
+        
+        // Mostra il nuovo contenuto
+        mainContentPanel.add(wrapperPanel, BorderLayout.CENTER);
+        mainContentPanel.revalidate();
+        mainContentPanel.repaint();
+        
+        // Aggiorna il titolo
+        setTitle("FantaCalcio - " + utenteCorrente.getNickname() + " - " + lega.getNome());
+    }
+
+    // NUOVO METODO: Torna alla vista principale con le tab
+    public void backToMainView() {
+        inLeagueDetail = false;
+        
+        // Rimuovi il contenuto attuale
+        mainContentPanel.removeAll();
+        
+        // Ripristina le tab
+        mainContentPanel.add(tabbedPane, BorderLayout.CENTER);
+        
+        // Vai alla tab delle leghe
+        tabbedPane.setSelectedIndex(1); // Tab "Le mie Leghe"
+        
+        mainContentPanel.revalidate();
+        mainContentPanel.repaint();
+        
+        // Refresh dati e titolo
+        joinLeaguePanel.refreshData();
+        updateTitle();
+    }
     
     /**
      * Aggiorna il titolo della finestra
      */
     public void updateTitle() {
+        if (inLeagueDetail) {
+            // Il titolo viene gestito in openLeagueDetail()
+            return;
+        }
+        
         int numSquadre = dashboardPanel.getNumeroSquadreUtente();
         int squadreComplete = dashboardPanel.getNumeroSquadreComplete();
         int numLeghe = joinLeaguePanel.getNumLeghe();
         
         setTitle(String.format("FantaCalcio - %s (%d leghe, %d squadre, %d complete)", 
-                              utenteCorrente.getNickname(), numLeghe, numSquadre, squadreComplete));
+                            utenteCorrente.getNickname(), numLeghe, numSquadre, squadreComplete));
     }
     
     /**
@@ -320,26 +392,6 @@ public class UserMainFrame extends JFrame {
         JOptionPane.showMessageDialog(this, info, "Informazioni", JOptionPane.INFORMATION_MESSAGE);
     }
     
-    /**
-     * Metodi per comunicazione tra panel
-     */
-    public void notifySquadraCreata() {
-        dashboardPanel.refreshData();
-        manageTeamPanel.refreshData();
-        joinLeaguePanel.refreshData();
-        updateTitle();
-        
-        // Passa alla tab di gestione squadre
-        tabbedPane.setSelectedIndex(3);
-    }
-    
-    public void notifySquadraModificata() {
-        dashboardPanel.refreshData();
-        manageTeamPanel.refreshData();
-        joinLeaguePanel.refreshData();
-        updateTitle();
-    }
-    
     public void notifySquadraEliminata() {
         dashboardPanel.refreshData();
         joinLeaguePanel.refreshData();
@@ -358,16 +410,12 @@ public class UserMainFrame extends JFrame {
     public Utente getUtenteCorrente() {
         return utenteCorrente;
     }
-    
-    public void switchToCreateTeam() {
-        tabbedPane.setSelectedIndex(2);
-    }
-    
-    public void switchToManageTeams() {
-        tabbedPane.setSelectedIndex(3);
-    }
-    
+
     public void switchToLeagues() {
-        tabbedPane.setSelectedIndex(1);
+        if (inLeagueDetail) {
+            backToMainView();
+        } else {
+            tabbedPane.setSelectedIndex(1);
+        }
     }
 }

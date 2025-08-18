@@ -517,10 +517,13 @@ public class CreateTeamPanel extends JPanel {
                             "Successo",
                             JOptionPane.INFORMATION_MESSAGE);
                         
-                        // Reset e notifica parent
-                        resetSquadra();
-                        txtNomeSquadra.setText("");
-                        parentFrame.notifySquadraCreata();
+                        // CAMBIARE QUESTE RIGHE:
+                        // resetSquadra();
+                        // txtNomeSquadra.setText("");
+                        // parentFrame.notifySquadraCreata();
+                        
+                        // CON QUESTA:
+                        onTeamCreatedSuccess(squadraInCostruzione);
                         
                     } else {
                         JOptionPane.showMessageDialog(CreateTeamPanel.this,
@@ -555,8 +558,19 @@ public class CreateTeamPanel extends JPanel {
     }
     
     private void resetSquadra() {
-        squadraInCostruzione = new SquadraFantacalcio("", utenteCorrente.getIdUtente());
+        squadraInCostruzione = new SquadraFantacalcio("", utenteCorrente.getIdUtente(), 0);
         updateSquadraStatus();
+    }
+
+    /**
+     * Metodo chiamato quando una squadra viene creata con successo
+     * Può essere overridden dalle sottoclassi
+     */
+    protected void onTeamCreatedSuccess(SquadraFantacalcio squadraCreata) {
+        // Comportamento di default: reset e notifica parent
+        resetSquadra();
+        txtNomeSquadra.setText(""); 
+        parentFrame.updateTitle();
     }
     
     private void aggiungiCalciatore(int row) {

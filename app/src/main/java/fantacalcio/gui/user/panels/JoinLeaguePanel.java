@@ -4,11 +4,17 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +38,7 @@ import fantacalcio.gui.user.UserMainFrame;
 import fantacalcio.model.Lega;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
+import fantacalcio.util.DatabaseConnection;
 
 /**
  * Panel per permettere agli utenti di joinare le leghe
@@ -48,7 +55,7 @@ public class JoinLeaguePanel extends JPanel {
     private DefaultTableModel modelTabella;
     private JTextField txtCodiceAccesso;
     private JButton btnJoinLega, btnRefresh, btnCreaSquadra, btnGestisciSquadra;
-    
+    private JButton btnCreaLega;
     // Statistiche
     private JLabel lblNumLeghe, lblSquadreCreate, lblSquadreComplete;
     
@@ -75,10 +82,36 @@ public class JoinLeaguePanel extends JPanel {
         createForm();
         createButtons();
         createStats();
+        setupTableDoubleClick();
     }
+
+    private void setupTableDoubleClick() {
+            tabellaLeghePartecipate.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (e.getClickCount() == 2) { // Double click
+                        int row = tabellaLeghePartecipate.getSelectedRow();
+                        if (row >= 0) {
+                            String nomeLega = (String) modelTabella.getValueAt(row, 0);
+                            String codiceAccesso = (String) modelTabella.getValueAt(row, 1);
+                            
+                            // Trova la lega corrispondente
+                            Lega lega = leghePartecipate.stream()
+                                .filter(l -> l.getNome().equals(nomeLega) && l.getCodiceAccesso().equals(codiceAccesso))
+                                .findFirst()
+                                .orElse(null);
+                            
+                            if (lega != null) {
+                                parentFrame.openLeagueDetail(lega);
+                            }
+                        }
+                    }
+                }
+            });
+        }
     
     private void createTable() {
-        String[] colonne = {"Nome Lega", "Codice Accesso", "Partecipanti", "Tue Squadre", "Status"};
+        String[] colonne = {"Nome Lega", "Codice Accesso", "Partecipanti", "Ruolo", "Tue Squadre"};
         modelTabella = new DefaultTableModel(colonne, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -115,25 +148,93 @@ public class JoinLeaguePanel extends JPanel {
     private void createButtons() {
         btnJoinLega = new JButton("🔗 Unisciti alla Lega");
         btnRefresh = new JButton("🔄 Aggiorna");
-        btnCreaSquadra = new JButton("⚽ Crea Squadra");
-        btnGestisciSquadra = new JButton("📝 Gestisci Squadre");
+        btnCreaLega = new JButton("🏆 Crea Nuova Lega"); // NUOVO
         
         // Stile pulsanti
         styleButton(btnJoinLega, new Color(76, 175, 80));
         styleButton(btnRefresh, new Color(158, 158, 158));
-        styleButton(btnCreaSquadra, new Color(33, 150, 243));
-        styleButton(btnGestisciSquadra, new Color(156, 39, 176));
+        styleButton(btnCreaLega, new Color(156, 39, 176)); // NUOVO
         
         // Tooltip informativi
         btnJoinLega.setToolTipText("Unisciti a una lega usando il codice di accesso");
-        btnCreaSquadra.setToolTipText("Crea una nuova squadra fantacalcio");
-        btnGestisciSquadra.setToolTipText("Gestisci le tue squadre esistenti");
+        btnCreaLega.setToolTipText("Crea una nuova lega e diventa admin"); // NUOVO
         
         // Event listeners
         btnJoinLega.addActionListener(this::joinLega);
         btnRefresh.addActionListener(e -> refreshData());
-        btnCreaSquadra.addActionListener(e -> parentFrame.switchToCreateTeam());
-        btnGestisciSquadra.addActionListener(e -> parentFrame.switchToManageTeams());
+        btnCreaLega.addActionListener(this::creaLega); // NUOVO
+    }
+
+    private void creaLega(ActionEvent e) {
+        String nomeLega = JOptionPane.showInputDialog(this,
+            "Inserisci il nome della nuova lega:",
+            "Crea Nuova Lega",
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (nomeLega != null && !nomeLega.trim().isEmpty()) {
+            final String nomeLegaFinal = nomeLega.trim();
+            
+            // Verifica se esiste già una lega con questo nome per questo utente
+            if (legaDAO.nomeLegaEsiste(nomeLegaFinal, utenteCorrente.getIdUtente())) {
+                JOptionPane.showMessageDialog(this,
+                    "Hai già una lega con questo nome!",
+                    "Nome Duplicato",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            final Lega nuovaLega = new Lega(nomeLegaFinal, utenteCorrente.getIdUtente());
+            
+            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() throws Exception {
+                    return legaDAO.creaLega(nuovaLega);
+                }
+                
+                @Override
+                protected void done() {
+                    try {
+                        boolean successo = get();
+                        
+                        if (successo) {
+                            JOptionPane.showMessageDialog(JoinLeaguePanel.this,
+                                "Lega '" + nomeLegaFinal + "' creata con successo!\n" +
+                                "Codice di accesso: " + nuovaLega.getCodiceAccesso() + "\n" +
+                                "Condividi questo codice con i tuoi amici!",
+                                "Lega Creata",
+                                JOptionPane.INFORMATION_MESSAGE);
+                            
+                            refreshData();
+                            
+                            // Chiedi se vuole aprire subito la lega
+                            int apri = JOptionPane.showConfirmDialog(JoinLeaguePanel.this,
+                                "Vuoi aprire subito la gestione della lega?",
+                                "Apri Lega",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.QUESTION_MESSAGE);
+                            
+                            if (apri == JOptionPane.YES_OPTION) {
+                                parentFrame.openLeagueDetail(nuovaLega);
+                            }
+                            
+                        } else {
+                            JOptionPane.showMessageDialog(JoinLeaguePanel.this,
+                                "Errore durante la creazione della lega.",
+                                "Errore",
+                                JOptionPane.ERROR_MESSAGE);
+                        }
+                        
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(JoinLeaguePanel.this,
+                            "Errore: " + ex.getMessage(),
+                            "Errore",
+                            JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            };
+            
+            worker.execute();
+        }
     }
     
     private void createStats() {
@@ -193,10 +294,11 @@ public class JoinLeaguePanel extends JPanel {
     
     private JPanel createFormPanel() {
         JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBorder(BorderFactory.createTitledBorder("Unisciti a una Lega"));
+        formPanel.setBorder(BorderFactory.createTitledBorder("Gestione Leghe"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
+        // Prima riga - Join lega esistente
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(new JLabel("Codice Accesso:"), gbc);
         
@@ -208,6 +310,14 @@ public class JoinLeaguePanel extends JPanel {
         
         gbc.gridx = 3;
         formPanel.add(btnRefresh, gbc);
+        
+        // Seconda riga - Crea nuova lega
+        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridwidth = 4;
+        JPanel createPanel = new JPanel(new FlowLayout());
+        createPanel.add(btnCreaLega);
+        formPanel.add(createPanel, gbc);
+        gbc.gridwidth = 1; // Reset
         
         return formPanel;
     }
@@ -286,9 +396,12 @@ public class JoinLeaguePanel extends JPanel {
         actionsPanel.setLayout(new BoxLayout(actionsPanel, BoxLayout.Y_AXIS));
         actionsPanel.setBorder(BorderFactory.createTitledBorder("Azioni Rapide"));
         
-        actionsPanel.add(btnCreaSquadra);
-        actionsPanel.add(Box.createVerticalStrut(10));
-        actionsPanel.add(btnGestisciSquadra);
+        JLabel infoLabel = new JLabel("<html><center>Fai doppio click su una lega<br>per gestire la tua squadra</center></html>");
+        infoLabel.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 12));
+        infoLabel.setForeground(new Color(100, 100, 100));
+        infoLabel.setHorizontalAlignment(JLabel.CENTER);
+        
+        actionsPanel.add(infoLabel);
         
         return actionsPanel;
     }
@@ -297,8 +410,8 @@ public class JoinLeaguePanel extends JPanel {
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                // Carica leghe partecipate
-                leghePartecipate = legaDAO.trovaLeghePerUtente(utenteCorrente.getIdUtente());
+                // CAMBIARE: Carica solo le leghe a cui l'utente partecipa realmente
+                leghePartecipate = trovaLegheRealiUtente();
                 
                 // Carica squadre utente
                 squadreUtente = squadraDAO.trovaSquadrePerUtente(utenteCorrente.getIdUtente());
@@ -323,27 +436,81 @@ public class JoinLeaguePanel extends JPanel {
         
         worker.execute();
     }
+
+    private List<Lega> trovaLegheRealiUtente() {
+        List<Lega> legheReali = new ArrayList<>();
+        
+        // 1. Trova leghe dove l'utente è admin
+        List<Lega> legheAdmin = legaDAO.trovaLeghePerAdmin(utenteCorrente.getIdUtente());
+        legheReali.addAll(legheAdmin);
+        
+        // 2. Trova leghe dove l'utente partecipa con squadre
+        List<SquadraFantacalcio> squadre = squadraDAO.trovaSquadrePerUtente(utenteCorrente.getIdUtente());
+        
+        for (SquadraFantacalcio squadra : squadre) {
+            try {
+                Optional<Lega> lega = trovaLegaDiSquadra(squadra.getIdSquadraFantacalcio());
+                if (lega.isPresent() && !legheReali.contains(lega.get())) {
+                    legheReali.add(lega.get());
+                }
+            } catch (Exception e) {
+                System.err.println("Errore ricerca lega per squadra " + squadra.getIdSquadraFantacalcio());
+            }
+        }
+        
+        return legheReali;
+    }
+
+    private Optional<Lega> trovaLegaDiSquadra(int idSquadra) {
+        String sql = """
+            SELECT l.* FROM LEGA l 
+            JOIN PARTECIPA p ON l.ID_Lega = p.ID_Lega 
+            WHERE p.ID_Squadra = ?
+            """;
+        
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, idSquadra);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(new Lega(
+                        rs.getInt("ID_Lega"),
+                        rs.getString("Nome"),
+                        rs.getString("Codice_accesso"),
+                        0 // ID admin non necessario qui
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore ricerca lega di squadra: " + e.getMessage());
+        }
+        
+        return Optional.empty();
+    }
     
     private void updateTable() {
         modelTabella.setRowCount(0);
         
         if (leghePartecipate == null) return;
         
+        List<Lega> legheAdmin = legaDAO.trovaLeghePerAdmin(utenteCorrente.getIdUtente());
+        
         for (Lega lega : leghePartecipate) {
             int partecipanti = legaDAO.contaPartecipanti(lega.getIdLega());
-            
-            // Conta squadre dell'utente in questa lega
             int squadreInLega = contaSquadreInLega(lega.getIdLega());
             
-            // Determina status
-            String status = squadreInLega > 0 ? "✅ Attivo" : "⚠️ Nessuna squadra";
+            // Determina ruolo
+            boolean isAdmin = legheAdmin.stream().anyMatch(l -> l.getIdLega() == lega.getIdLega());
+            String ruolo = isAdmin ? "👑 Admin" : "👤 Partecipante";
             
             Object[] riga = {
                 lega.getNome(),
                 lega.getCodiceAccesso(),
                 partecipanti,
-                squadreInLega,
-                status
+                ruolo,
+                squadreInLega
             };
             modelTabella.addRow(riga);
         }
@@ -404,48 +571,34 @@ public class JoinLeaguePanel extends JPanel {
                     
                     Lega lega = legaOpt.get();
                     
-                    // Verifica se l'utente ha già una squadra che partecipa a questa lega
+                    // Verifica se l'utente partecipa già a questa lega
                     boolean giaPartecipa = leghePartecipate.stream()
                         .anyMatch(l -> l.getIdLega() == lega.getIdLega());
                     
                     if (giaPartecipa) {
+                        // Se già partecipa, apri direttamente la lega
                         JOptionPane.showMessageDialog(JoinLeaguePanel.this,
-                            "Partecipi già alla lega '" + lega.getNome() + "'!",
+                            "Partecipi già alla lega '" + lega.getNome() + "'!\nAprendo la gestione della lega...",
                             "Lega già joined",
                             JOptionPane.INFORMATION_MESSAGE);
+                        parentFrame.openLeagueDetail(lega);
                         return;
                     }
                     
-                    // Chiedi conferma
+                    // Chiedi conferma per entrare
                     int conferma = JOptionPane.showConfirmDialog(JoinLeaguePanel.this,
                         "Vuoi unirti alla lega '" + lega.getNome() + "'?\n\n" +
-                        "Dovrai creare una squadra per iniziare a giocare.",
+                        "Verrai reindirizzato alla creazione della tua squadra per questa lega.",
                         "Conferma Join Lega",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.QUESTION_MESSAGE);
                     
                     if (conferma == JOptionPane.YES_OPTION) {
-                        // Per ora aggiungiamo la lega senza una squadra specifica
-                        // L'utente dovrà creare una squadra separatamente
-                        JOptionPane.showMessageDialog(JoinLeaguePanel.this,
-                            "Ti sei unito alla lega '" + lega.getNome() + "'!\n\n" +
-                            "Ora puoi creare una squadra per iniziare a giocare.",
-                            "Welcome to the League!",
-                            JOptionPane.INFORMATION_MESSAGE);
-                        
                         txtCodiceAccesso.setText("");
                         refreshData();
                         
-                        // Suggerisci di creare una squadra
-                        int creaSquadra = JOptionPane.showConfirmDialog(JoinLeaguePanel.this,
-                            "Vuoi creare subito una squadra per questa lega?",
-                            "Crea Squadra",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE);
-                        
-                        if (creaSquadra == JOptionPane.YES_OPTION) {
-                            parentFrame.switchToCreateTeam();
-                        }
+                        // Apri direttamente il dettaglio della lega
+                        parentFrame.openLeagueDetail(lega);
                     }
                     
                 } catch (Exception ex) {
@@ -459,6 +612,8 @@ public class JoinLeaguePanel extends JPanel {
         
         worker.execute();
     }
+
+    
     
     private void styleButton(JButton button, Color color) {
         button.setBackground(color);
