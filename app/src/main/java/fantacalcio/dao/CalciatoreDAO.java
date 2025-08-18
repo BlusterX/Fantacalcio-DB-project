@@ -32,57 +32,82 @@ public class CalciatoreDAO {
      * Inserisce un nuovo calciatore e la sua relazione con la squadra Serie A
      */
     public boolean inserisciCalciatore(Calciatore calciatore, int idSquadraSerieA) {
-        Connection conn = null;
-        try {
-            conn = dbConnection.getConnection();
+        // IMPORTANTE: Non usare variabile Connection esterna, usa try-with-resources
+        String sqlCalciatore = "INSERT INTO CALCIATORE (Nome, Cognome, Ruolo, Costo, ID_Fascia) VALUES (?, ?, ?, ?, ?)";
+        String sqlAppartenenza = "INSERT INTO APPARTENENZA_SQUADRA_SERIE_A (ID_Calciatore, ID_SquadraA) VALUES (?, ?)";
+        
+        try (Connection conn = dbConnection.getConnection()) {
             conn.setAutoCommit(false);
             
-            // 1. Inserisci il calciatore
-            String sqlCalciatore = "INSERT INTO CALCIATORE (Nome, Cognome, Ruolo, Costo) VALUES (?, ?, ?, ?)";
+            // Controlla se esiste già
+            if (calciatoreEsiste(calciatore.getNome(), calciatore.getCognome())) {
+                System.out.println("Calciatore già esistente: " + calciatore.getNomeCompleto() + " - saltato");
+                return false;
+            }
             
-            try (PreparedStatement stmtCalciatore = conn.prepareStatement(sqlCalciatore, Statement.RETURN_GENERATED_KEYS)) {
-                stmtCalciatore.setString(1, calciatore.getNome());
-                stmtCalciatore.setString(2, calciatore.getCognome());
-                stmtCalciatore.setString(3, calciatore.getRuolo().getAbbreviazione());
-                stmtCalciatore.setInt(4, calciatore.getCosto());
-                
-                int righeInserite = stmtCalciatore.executeUpdate();
-                
-                if (righeInserite > 0) {
-                    try (ResultSet generatedKeys = stmtCalciatore.getGeneratedKeys()) {
-                        if (generatedKeys.next()) {
-                            calciatore.setIdCalciatore(generatedKeys.getInt(1));
+            try {
+                // 1. Inserisci il calciatore
+                try (PreparedStatement stmtCalciatore = conn.prepareStatement(sqlCalciatore, Statement.RETURN_GENERATED_KEYS)) {
+                    stmtCalciatore.setString(1, calciatore.getNome());
+                    stmtCalciatore.setString(2, calciatore.getCognome());
+                    stmtCalciatore.setString(3, calciatore.getRuolo().getAbbreviazione());
+                    stmtCalciatore.setInt(4, calciatore.getCosto());
+                    stmtCalciatore.setInt(5, calciatore.getIdFascia());
+                    
+                    int righeInserite = stmtCalciatore.executeUpdate();
+                    
+                    if (righeInserite > 0) {
+                        try (ResultSet generatedKeys = stmtCalciatore.getGeneratedKeys()) {
+                            if (generatedKeys.next()) {
+                                calciatore.setIdCalciatore(generatedKeys.getInt(1));
+                            }
                         }
+                        
+                        // 2. Inserisci la relazione APPARTENENZA_SQUADRA_SERIE_A
+                        try (PreparedStatement stmtAppartenenza = conn.prepareStatement(sqlAppartenenza)) {
+                            stmtAppartenenza.setInt(1, calciatore.getIdCalciatore());
+                            stmtAppartenenza.setInt(2, idSquadraSerieA);
+                            stmtAppartenenza.executeUpdate();
+                        }
+                        
+                        conn.commit();
+                        System.out.println("Calciatore inserito: " + calciatore.getNomeCompleto() + " (costo: " + calciatore.getCosto() + ")");
+                        return true;
                     }
-                    
-                    // 2. Inserisci la relazione APPARTENENZA_SQUADRA_SERIE_A
-                    String sqlAppartenenza = "INSERT INTO APPARTENENZA_SQUADRA_SERIE_A (ID_Calciatore, ID_SquadraA) VALUES (?, ?)";
-                    
-                    try (PreparedStatement stmtAppartenenza = conn.prepareStatement(sqlAppartenenza)) {
-                        stmtAppartenenza.setInt(1, calciatore.getIdCalciatore());
-                        stmtAppartenenza.setInt(2, idSquadraSerieA);
-                        stmtAppartenenza.executeUpdate();
-                    }
-                    
-                    conn.commit();
-                    System.out.println("Calciatore inserito: " + calciatore.getNomeCompleto() + " (costo: " + calciatore.getCosto() + ")");
-                    return true;
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e; // Rilancia l'eccezione per gestirla nel catch esterno
+            } finally {
+                conn.setAutoCommit(true);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Errore inserimento calciatore: " + e.getMessage());
+        }
+        
+        return false;
+    }
+
+    private boolean calciatoreEsiste(String nome, String cognome) {
+        String sql = "SELECT COUNT(*) FROM CALCIATORE WHERE Nome = ? AND Cognome = ?";
+        
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            // PRIMA imposta i parametri
+            stmt.setString(1, nome);
+            stmt.setString(2, cognome);
+            
+            // POI esegui la query
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
                 }
             }
             
         } catch (SQLException e) {
-            try {
-                if (conn != null) conn.rollback();
-            } catch (SQLException rollbackEx) {
-                System.err.println("Errore rollback: " + rollbackEx.getMessage());
-            }
-            System.err.println("Errore inserimento calciatore: " + e.getMessage());
-        } finally {
-            try {
-                if (conn != null) conn.setAutoCommit(true);
-            } catch (SQLException ex) {
-                System.err.println("Errore ripristino autocommit: " + ex.getMessage());
-            }
+            System.err.println("Errore controllo esistenza calciatore: " + e.getMessage());
         }
         return false;
     }
@@ -122,8 +147,8 @@ public class CalciatoreDAO {
                     "ORDER BY s.Nome, c.Cognome, c.Nome";
         
         try (Connection conn = dbConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery()) {
             
             while (rs.next()) {
                 Calciatore calciatore = creaCalciatoreDaResultSet(rs);

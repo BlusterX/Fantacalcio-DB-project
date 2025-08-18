@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import fantacalcio.dao.CalciatoreDAO;
+import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
 import fantacalcio.dao.SquadraSerieADAO;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraSerieA;
@@ -347,6 +348,11 @@ public class DataPopulator {
         if (idSquadra != null) {
             Calciatore calciatore = new Calciatore(nome, cognome, ruolo, costo);
 
+            if (calciatoreEsiste(nome, cognome)) {
+                System.out.println("Calciatore già esistente: " + nome + " " + cognome + " - saltato");
+                return false;
+            }
+
             int idFascia;
             if (costo >= 70) {
                 idFascia = 1;            // TOP
@@ -366,7 +372,13 @@ public class DataPopulator {
             return false;
         }
     }
-
+    
+    private boolean calciatoreEsiste(String nome, String cognome) {
+        List<CalciatoreConSquadra> esistenti = calciatoreDAO.trovaTuttiICalciatoriConSquadra();
+        return esistenti.stream()
+                    .anyMatch(cs -> cs.getCalciatore().getNome().equals(nome) && 
+                                    cs.getCalciatore().getCognome().equals(cognome));
+    }
     
     /**
      * Crea mappa nome squadra -> ID

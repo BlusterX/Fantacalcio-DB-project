@@ -14,9 +14,8 @@ public class SquadraFantacalcio {
     private int budgetRimanente;
     private LocalDateTime dataCreazione;
     private LocalDateTime dataUltimaModifica;
-    private boolean completata; // true se ha tutti i giocatori richiesti
-    
-    // Lista calciatori nella squadra (per uso in memoria)
+    private boolean completata;
+    private int idLega;
     private List<Calciatore> calciatori;
     
     // Costanti per regole fantacalcio
@@ -38,10 +37,11 @@ public class SquadraFantacalcio {
         this.completata = false;
     }
     
-    public SquadraFantacalcio(String nomeSquadra, int idUtente) {
+    public SquadraFantacalcio(String nomeSquadra, int idUtente, int idLega) {
         this();
         this.nomeSquadra = nomeSquadra;
         this.idUtente = idUtente;
+        this.idLega = idLega;
     }
     
     // Costruttore completo (per lettura da database)
@@ -82,6 +82,14 @@ public class SquadraFantacalcio {
     
     public void setIdUtente(int idUtente) {
         this.idUtente = idUtente;
+    }
+
+    public int getIdLega() { 
+        return idLega; 
+    }
+
+    public void setIdLega(int idLega) { 
+        this.idLega = idLega; 
     }
     
     public int getBudgetTotale() {

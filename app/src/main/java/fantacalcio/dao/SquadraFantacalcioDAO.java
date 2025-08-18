@@ -360,7 +360,6 @@ public class SquadraFantacalcioDAO {
                         
                     } catch (SQLException ex) {
                         System.err.println("Errore lettura riga calciatore: " + ex.getMessage());
-                        // Continua con la prossima riga
                     }
                 }
             }
@@ -395,6 +394,67 @@ public class SquadraFantacalcioDAO {
             System.err.println("Errore ricerca squadre complete: " + e.getMessage());
         }
         return squadre;
+    }
+
+    public Optional<SquadraFantacalcio> trovaSquadraUtentePerLega(int idUtente, int idLega) {
+        String sql = """
+            SELECT s.* FROM SQUADRA_FANTACALCIO s 
+            JOIN PARTECIPA p ON s.ID_Squadra = p.ID_Squadra 
+            WHERE s.ID_Utente = ? AND p.ID_Lega = ?
+            """;
+        
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, idUtente);
+            stmt.setInt(2, idLega);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    SquadraFantacalcio squadra = creaSquadraDaResultSet(rs);
+                    squadra.setIdLega(idLega);
+                    caricaCalciatori(squadra);
+                    return Optional.of(squadra);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore ricerca squadra utente per lega: " + e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    public boolean creaSquadraPerLega(SquadraFantacalcio squadra, int idLega) {
+        Connection conn = null;
+        try {
+            conn = dbConnection.getConnection();
+            conn.setAutoCommit(false);
+            
+            // 1. Crea la squadra
+            if (!creaSquadra(squadra)) {
+                return false;
+            }
+            
+            // 2. Collegala automaticamente alla lega
+            if (!collegaSquadraALega(squadra.getIdSquadraFantacalcio(), idLega)) {
+                conn.rollback();
+                return false;
+            }
+            
+            squadra.setIdLega(idLega);
+            conn.commit();
+            return true;
+            
+        } catch (SQLException e) {
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) {}
+            System.err.println("Errore creazione squadra per lega: " + e.getMessage());
+            return false;
+        } finally {
+            try {
+                if (conn != null) conn.setAutoCommit(true);
+            } catch (SQLException ex) {}
+        }
     }
     
     /**
