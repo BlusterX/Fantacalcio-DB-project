@@ -11,6 +11,11 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,10 +35,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
+import fantacalcio.util.DatabaseConnection;
 
 /**
  * Dialog per gestire la formazione di una squadra
@@ -235,22 +242,17 @@ public class FormationManagementDialog extends JDialog {
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
         
         JButton btnAggiungiTitolare = new JButton("→ Titolare");
-        JButton btnAggiungiPanchina = new JButton("→ Panchina");
         JButton btnRimuovi = new JButton("← Rimuovi");
         
         styleSmallButton(btnAggiungiTitolare, new Color(76, 175, 80));
-        styleSmallButton(btnAggiungiPanchina, new Color(255, 152, 0));
         styleSmallButton(btnRimuovi, new Color(244, 67, 54));
         
         controlPanel.add(btnAggiungiTitolare);
-        controlPanel.add(Box.createVerticalStrut(5));
-        controlPanel.add(btnAggiungiPanchina);
-        controlPanel.add(Box.createVerticalStrut(5));
+        controlPanel.add(Box.createVerticalStrut(10));
         controlPanel.add(btnRimuovi);
         
         // Event listeners
         btnAggiungiTitolare.addActionListener(e -> aggiungiATitolari());
-        btnAggiungiPanchina.addActionListener(e -> aggiungiAPanchina());
         btnRimuovi.addActionListener(e -> rimuoviGiocatore());
         
         return controlPanel;
@@ -386,14 +388,11 @@ public class FormationManagementDialog extends JDialog {
     }
     
     private void aggiornaModulo() {
-        // TODO: Implementare logica cambio modulo
         String modulo = (String) comboModulo.getSelectedItem();
         System.out.println("Modulo cambiato a: " + modulo);
     }
     
     private void aggiornaContatori() {
-        // Aggiorna i titoli dei pannelli con i contatori
-        // TODO: Implementare aggiornamento dinamico titoli
     }
     
     private void salvaFormazione(ActionEvent e) {
@@ -404,10 +403,143 @@ public class FormationManagementDialog extends JDialog {
             return;
         }
         
-        // TODO: Salvare formazione nel database
-        JOptionPane.showMessageDialog(this, 
-            "Formazione salvata con successo!", 
-            "Successo", JOptionPane.INFORMATION_MESSAGE);
+        SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+            @Override
+            protected Boolean doInBackground() throws Exception {
+                return salvaFormazioneNelDatabase();
+            }
+            
+            @Override
+            protected void done() {
+                try {
+                    boolean successo = get();
+                    if (successo) {
+                        JOptionPane.showMessageDialog(FormationManagementDialog.this,
+                            "Formazione salvata con successo per la giornata " + GIORNATA_CORRENTE + "!",
+                            "Successo", JOptionPane.INFORMATION_MESSAGE);
+                        dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(FormationManagementDialog.this,
+                            "Errore durante il salvataggio della formazione.",
+                            "Errore", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(FormationManagementDialog.this,
+                        "Errore: " + ex.getMessage(),
+                        "Errore", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        
+        worker.execute();
+    }
+
+    private boolean salvaFormazioneNelDatabase() {
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInstance().getConnection();
+            conn.setAutoCommit(false);
+            
+            String modulo = (String) comboModulo.getSelectedItem();
+            
+            // 1. Crea o aggiorna la formazione
+            String sqlFormazione = """
+                INSERT INTO FORMAZIONE (Modulo, ID_Squadra) VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE Modulo = VALUES(Modulo)
+                """;
+            
+            int idFormazione;
+            try (PreparedStatement stmt = conn.prepareStatement(sqlFormazione, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setString(1, modulo);
+                stmt.setInt(2, squadra.getIdSquadraFantacalcio());
+                stmt.executeUpdate();
+                
+                try (ResultSet rs = stmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        idFormazione = rs.getInt(1);
+                    } else {
+                        // Se non è stata inserita, cerca l'esistente
+                        String sqlCerca = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra = ?";
+                        try (PreparedStatement stmtCerca = conn.prepareStatement(sqlCerca)) {
+                            stmtCerca.setInt(1, squadra.getIdSquadraFantacalcio());
+                            try (ResultSet rsCerca = stmtCerca.executeQuery()) {
+                                if (rsCerca.next()) {
+                                    idFormazione = rsCerca.getInt("ID_Formazione");
+                                } else {
+                                    throw new SQLException("Impossibile ottenere ID formazione");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 2. Pulisci le associazioni esistenti
+            String sqlPulisci = "DELETE FROM FORMANO WHERE ID_Formazione = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlPulisci)) {
+                stmt.setInt(1, idFormazione);
+                stmt.executeUpdate();
+            }
+            
+            // 3. Inserisci i titolari
+            String sqlTitolari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina) VALUES (?, ?, 'NO')";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlTitolari)) {
+                for (int i = 0; i < modelTitolari.getSize(); i++) {
+                    Calciatore calciatore = modelTitolari.getElementAt(i);
+                    stmt.setInt(1, calciatore.getIdCalciatore());
+                    stmt.setInt(2, idFormazione);
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+            }
+            
+            // 4. Inserisci i panchinari (tutti gli altri)
+            String sqlPanchinari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina, Ordine_Panchina) VALUES (?, ?, 'SI', ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlPanchinari)) {
+                int ordinePanchina = 1;
+                for (int i = 0; i < modelPanchina.getSize(); i++) {
+                    Calciatore calciatore = modelPanchina.getElementAt(i);
+                    stmt.setInt(1, calciatore.getIdCalciatore());
+                    stmt.setInt(2, idFormazione);
+                    stmt.setInt(3, ordinePanchina++);
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+            }
+            
+            // 5. Associa la formazione alla giornata
+            String sqlSchieramento = """
+                INSERT INTO SCHIERAMENTO (ID_Squadra, ID_Formazione, Numero_Giornata) 
+                VALUES (?, ?, ?) 
+                ON DUPLICATE KEY UPDATE ID_Formazione = VALUES(ID_Formazione)
+                """;
+            try (PreparedStatement stmt = conn.prepareStatement(sqlSchieramento)) {
+                stmt.setInt(1, squadra.getIdSquadraFantacalcio());
+                stmt.setInt(2, idFormazione);
+                stmt.setInt(3, GIORNATA_CORRENTE);
+                stmt.executeUpdate();
+            }
+            
+            conn.commit();
+            System.out.println("Formazione salvata: " + modelTitolari.getSize() + " titolari, " + 
+                            modelPanchina.getSize() + " panchinari");
+            return true;
+            
+        } catch (SQLException ex) {
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException rollbackEx) {
+                System.err.println("Errore rollback: " + rollbackEx.getMessage());
+            }
+            System.err.println("Errore salvataggio formazione: " + ex.getMessage());
+            return false;
+        } finally {
+            try {
+                if (conn != null) conn.setAutoCommit(true);
+            } catch (SQLException ex) {
+                System.err.println("Errore ripristino autocommit: " + ex.getMessage());
+            }
+        }
     }
     
     private void resetFormazione(ActionEvent e) {
