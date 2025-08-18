@@ -26,14 +26,12 @@ public class SquadraFantacalcioDAO {
     }
     
     /**
-     * Crea una nuova squadra fantacalcio
+     * Crea una nuova squadra fantacalcio e la collega opzionalmente a una lega
      */
     public boolean creaSquadra(SquadraFantacalcio squadra) {
-        String sql = """
-            INSERT INTO SQUADRA_FANTACALCIO 
-            (Nome, ID_Utente, Budget_totale, Budget_rimanente, Data_creazione, Data_ultima_modifica, Completata) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """;
+        String sql = "INSERT INTO SQUADRA_FANTACALCIO " +
+                    "(Nome, ID_Utente, Budget_totale, Budget_rimanente, Data_creazione, Data_ultima_modifica, Completata) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -54,7 +52,7 @@ public class SquadraFantacalcioDAO {
                         squadra.setIdSquadraFantacalcio(generatedKeys.getInt(1));
                     }
                 }
-                System.out.println("Squadra fantacalcio creata: " + squadra.getNomeSquadra());
+                System.out.println("Squadra fantacalcio creata: " + squadra.getNomeSquadra() + " (ID: " + squadra.getIdSquadraFantacalcio() + ")");
                 return true;
             }
             
@@ -68,10 +66,39 @@ public class SquadraFantacalcioDAO {
     }
     
     /**
+     * Collega una squadra a una lega
+     */
+    public boolean collegaSquadraALega(int idSquadra, int idLega) {
+        String sql = "INSERT INTO PARTECIPA (ID_Squadra, ID_Lega) VALUES (?, ?)";
+        
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, idSquadra);
+            stmt.setInt(2, idLega);
+            
+            int righeInserite = stmt.executeUpdate();
+            
+            if (righeInserite > 0) {
+                System.out.println("Squadra " + idSquadra + " collegata alla lega " + idLega);
+                return true;
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Errore collegamento squadra-lega: " + e.getMessage());
+            if (e.getMessage().contains("Duplicate entry")) {
+                System.err.println("   Squadra già collegata a questa lega!");
+                return true; // Non è un errore se è già collegata
+            }
+        }
+        return false;
+    }
+    
+    /**
      * Trova una squadra per ID
      */
     public Optional<SquadraFantacalcio> trovaSquadraPerId(int idSquadra) {
-        String sql = "SELECT * FROM SQUADRA_FANTACALCIO WHERE ID_SquadraFantacalcio = ?";
+        String sql = "SELECT * FROM SQUADRA_FANTACALCIO WHERE ID_Squadra = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -130,11 +157,9 @@ public class SquadraFantacalcioDAO {
      * Aggiorna una squadra esistente
      */
     public boolean aggiornaSquadra(SquadraFantacalcio squadra) {
-        String sql = """
-            UPDATE SQUADRA_FANTACALCIO 
-            SET Nome = ?, Budget_rimanente = ?, Data_ultima_modifica = ?, Completata = ?
-            WHERE ID_SquadraFantacalcio = ?
-            """;
+        String sql = "UPDATE SQUADRA_FANTACALCIO " +
+                    "SET Nome = ?, Budget_rimanente = ?, Data_ultima_modifica = ?, Completata = ? " +
+                    "WHERE ID_Squadra = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -162,7 +187,7 @@ public class SquadraFantacalcioDAO {
      * Elimina una squadra e tutte le sue composizioni
      */
     public boolean eliminaSquadra(int idSquadra) {
-        String sql = "DELETE FROM SQUADRA_FANTACALCIO WHERE ID_SquadraFantacalcio = ?";
+        String sql = "DELETE FROM SQUADRA_FANTACALCIO WHERE ID_Squadra = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -286,12 +311,16 @@ public class SquadraFantacalcioDAO {
      * Carica i calciatori di una squadra dal database
      */
     private void caricaCalciatori(SquadraFantacalcio squadra) {
-        String sql = """
-            SELECT c.* FROM CALCIATORE c
-            JOIN COMPOSIZIONE cs ON c.ID_Calciatore = cs.ID_Calciatore
-            WHERE cs.ID_SquadraFantacalcio = ?
-            ORDER BY c.Ruolo, c.Cognome, c.Nome
-            """;
+        // Se la squadra non ha ID valido, non cercare calciatori
+        if (squadra.getIdSquadraFantacalcio() <= 0) {
+            squadra.setCalciatori(new ArrayList<>());
+            return;
+        }
+        
+        String sql = "SELECT c.* FROM CALCIATORE c " +
+                    "JOIN COMPOSIZIONE cs ON c.ID_Calciatore = cs.ID_Calciatore " +
+                    "WHERE cs.ID_Squadra = ? " +
+                    "ORDER BY c.Ruolo, c.Cognome, c.Nome";
         
         List<Calciatore> calciatori = new ArrayList<>();
         
@@ -302,22 +331,47 @@ public class SquadraFantacalcioDAO {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Calciatore calciatore = new Calciatore(
-                        rs.getInt("ID_Calciatore"),
-                        rs.getString("Nome"),
-                        rs.getString("Cognome"),
-                        Calciatore.Ruolo.valueOf(rs.getString("Ruolo")),
-                        rs.getInt("Costo")
-                    );
-                    calciatori.add(calciatore);
+                    try {
+                        String ruoloDb = rs.getString("Ruolo");
+                        Calciatore.Ruolo ruolo;
+                        
+                        // Usa if-else invece di switch expression per compatibilità
+                        if ("P".equals(ruoloDb)) {
+                            ruolo = Calciatore.Ruolo.PORTIERE;
+                        } else if ("D".equals(ruoloDb)) {
+                            ruolo = Calciatore.Ruolo.DIFENSORE;
+                        } else if ("C".equals(ruoloDb)) {
+                            ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
+                        } else if ("A".equals(ruoloDb)) {
+                            ruolo = Calciatore.Ruolo.ATTACCANTE;
+                        } else {
+                            System.err.println("Ruolo non valido trovato: " + ruoloDb + " - saltato");
+                            continue;
+                        }
+                        
+                        Calciatore calciatore = new Calciatore(
+                            rs.getInt("ID_Calciatore"),
+                            rs.getString("Nome"),
+                            rs.getString("Cognome"),
+                            ruolo,
+                            rs.getInt("Costo")
+                        );
+                        calciatori.add(calciatore);
+                        
+                    } catch (SQLException ex) {
+                        System.err.println("Errore lettura riga calciatore: " + ex.getMessage());
+                        // Continua con la prossima riga
+                    }
                 }
             }
             
         } catch (SQLException e) {
             System.err.println("Errore caricamento calciatori squadra: " + e.getMessage());
+            e.printStackTrace();
         }
         
         squadra.setCalciatori(calciatori);
+        System.out.println("Caricati " + calciatori.size() + " calciatori per squadra ID: " + squadra.getIdSquadraFantacalcio());
     }
     
     /**
@@ -348,7 +402,7 @@ public class SquadraFantacalcioDAO {
      */
     private SquadraFantacalcio creaSquadraDaResultSet(ResultSet rs) throws SQLException {
         return new SquadraFantacalcio(
-            rs.getInt("ID_SquadraFantacalcio"),
+            rs.getInt("ID_Squadra"), // CORREZIONE: era ID_SquadraFantacalcio
             rs.getString("Nome"),
             rs.getInt("ID_Utente"),
             rs.getInt("Budget_totale"),

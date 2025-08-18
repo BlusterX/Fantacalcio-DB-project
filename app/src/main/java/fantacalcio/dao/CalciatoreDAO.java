@@ -229,14 +229,22 @@ public class CalciatoreDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
+                String ruoloDb = rs.getString("Ruolo");
                 Calciatore.Ruolo ruolo;
-                switch (rs.getString("Ruolo")) {
-                    case "P" -> ruolo = Calciatore.Ruolo.PORTIERE;
-                    case "D" -> ruolo = Calciatore.Ruolo.DIFENSORE;
-                    case "C" -> ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
-                    case "A" -> ruolo = Calciatore.Ruolo.ATTACCANTE;
-                    default  -> throw new IllegalArgumentException("Ruolo non valido: "+rs.getString("Ruolo"));
+                
+                // Usa if-else invece di switch expression
+                if ("P".equals(ruoloDb)) {
+                    ruolo = Calciatore.Ruolo.PORTIERE;
+                } else if ("D".equals(ruoloDb)) {
+                    ruolo = Calciatore.Ruolo.DIFENSORE;
+                } else if ("C".equals(ruoloDb)) {
+                    ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
+                } else if ("A".equals(ruoloDb)) {
+                    ruolo = Calciatore.Ruolo.ATTACCANTE;
+                } else {
+                    throw new IllegalArgumentException("Ruolo non valido: " + ruoloDb);
                 }
+                
                 int conteggio = rs.getInt("Conteggio");
                 conteggi.put(ruolo, conteggio);
             }
@@ -254,12 +262,17 @@ public class CalciatoreDAO {
         String ruoloDb = rs.getString("Ruolo");
 
         Calciatore.Ruolo ruolo;
-        switch (ruoloDb) {
-            case "P"  -> ruolo = Calciatore.Ruolo.PORTIERE;
-            case "D"  -> ruolo = Calciatore.Ruolo.DIFENSORE;
-            case "C"  -> ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
-            case "A"  -> ruolo = Calciatore.Ruolo.ATTACCANTE;
-            default   -> throw new IllegalArgumentException("Ruolo non valido: " + ruoloDb);
+        // Usa if-else invece di switch expression per compatibilità
+        if ("P".equals(ruoloDb)) {
+            ruolo = Calciatore.Ruolo.PORTIERE;
+        } else if ("D".equals(ruoloDb)) {
+            ruolo = Calciatore.Ruolo.DIFENSORE;
+        } else if ("C".equals(ruoloDb)) {
+            ruolo = Calciatore.Ruolo.CENTROCAMPISTA;
+        } else if ("A".equals(ruoloDb)) {
+            ruolo = Calciatore.Ruolo.ATTACCANTE;
+        } else {
+            throw new IllegalArgumentException("Ruolo non valido: " + ruoloDb);
         }
 
         return new Calciatore(

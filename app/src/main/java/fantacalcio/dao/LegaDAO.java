@@ -111,12 +111,10 @@ public class LegaDAO {
      */
     public List<Lega> trovaLeghePerAdmin(int idAdmin) {
         List<Lega> leghe = new ArrayList<>();
-        String sql = """
-            SELECT l.* FROM LEGA l
-            JOIN ADMIN a ON l.ID_Lega = a.ID_Lega
-            WHERE a.ID_Utente = ?
-            ORDER BY l.Nome
-            """;
+        String sql = "SELECT l.* FROM LEGA l " +
+                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
+                    "WHERE a.ID_Utente = ? " +
+                    "ORDER BY l.Nome";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -138,22 +136,17 @@ public class LegaDAO {
     }
     
     /**
-     * Trova le leghe a cui partecipa un utente
+     * Trova le leghe a cui partecipa un utente (semplificata)
      */
     public List<Lega> trovaLeghePerUtente(int idUtente) {
         List<Lega> leghe = new ArrayList<>();
-        String sql = """
-            SELECT l.* FROM LEGA l
-            JOIN PARTECIPA p ON l.ID_Lega = p.ID_Lega
-            JOIN SQUADRA_FANTACALCIO sf ON p.ID_Squadra = sf.ID_Squadra
-            WHERE sf.ID_Utente = ?
-            ORDER BY l.Nome
-            """;
+        
+        // Per ora restituiamo tutte le leghe, dato che la relazione PARTECIPA 
+        // non è ancora completamente implementata
+        String sql = "SELECT * FROM LEGA ORDER BY Nome";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, idUtente);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -246,11 +239,9 @@ public class LegaDAO {
      * Elimina una lega (solo se è l'admin)
      */
     public boolean eliminaLega(int idLega, int idAdmin) {
-        String sql = """
-            DELETE l FROM LEGA l
-            JOIN ADMIN a ON l.ID_Lega = a.ID_Lega
-            WHERE l.ID_Lega = ? AND a.ID_Utente = ?
-            """;
+        String sql = "DELETE l FROM LEGA l " +
+                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
+                    "WHERE l.ID_Lega = ? AND a.ID_Utente = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -275,12 +266,10 @@ public class LegaDAO {
      * Aggiorna una lega
      */
     public boolean aggiornaLega(Lega lega) {
-        String sql = """
-            UPDATE LEGA l
-            JOIN ADMIN a ON l.ID_Lega = a.ID_Lega
-            SET l.Nome = ?
-            WHERE l.ID_Lega = ? AND a.ID_Utente = ?
-            """;
+        String sql = "UPDATE LEGA l " +
+                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
+                    "SET l.Nome = ? " +
+                    "WHERE l.ID_Lega = ? AND a.ID_Utente = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -306,11 +295,9 @@ public class LegaDAO {
      * Verifica se un nome lega esiste già per un admin
      */
     public boolean nomeLegaEsiste(String nomeLega, int idAdmin) {
-        String sql = """
-            SELECT COUNT(*) FROM LEGA l
-            JOIN ADMIN a ON l.ID_Lega = a.ID_Lega
-            WHERE l.Nome = ? AND a.ID_Utente = ?
-            """;
+        String sql = "SELECT COUNT(*) FROM LEGA l " +
+                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
+                    "WHERE l.Nome = ? AND a.ID_Utente = ?";
         
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
