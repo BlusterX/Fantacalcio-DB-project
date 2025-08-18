@@ -30,6 +30,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 
+import fantacalcio.dao.LegaDAO;
 import fantacalcio.gui.MainFrame;
 import fantacalcio.model.Lega;
 import fantacalcio.model.Utente;

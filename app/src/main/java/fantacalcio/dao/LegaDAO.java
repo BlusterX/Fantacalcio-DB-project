@@ -300,21 +300,6 @@ public class LegaDAO {
             System.err.println("Errore aggiornamento lega: " + e.getMessage());
         }
         return false;
-    }.getNome());
-            stmt.setInt(2, lega.getIdLega());
-            stmt.setInt(3, lega.getIdAdmin());
-            
-            int righeAggiornate = stmt.executeUpdate();
-            
-            if (righeAggiornate > 0) {
-                System.out.println("Lega aggiornata: " + lega.getNome());
-                return true;
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Errore aggiornamento lega: " + e.getMessage());
-        }
-        return false;
     }
     
     /**
