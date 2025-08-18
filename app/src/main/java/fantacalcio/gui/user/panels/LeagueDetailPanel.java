@@ -98,11 +98,10 @@ public class LeagueDetailPanel extends JPanel {
         headerPanel.add(titleLabel, BorderLayout.NORTH);
         headerPanel.add(infoLabel, BorderLayout.SOUTH);
         
-        // Crea una classe anonima che estende CreateTeamPanel
-        CreateTeamPanel createPanel = new CreateTeamPanel(parentFrame, utenteCorrente) {
+        // PASSA idLega al costruttore
+        CreateTeamPanel createPanel = new CreateTeamPanel(parentFrame, utenteCorrente, lega.getIdLega()) {
             @Override
             protected void onTeamCreatedSuccess(SquadraFantacalcio nuovaSquadra) {
-                // Chiama il metodo della classe parent
                 LeagueDetailPanel.this.onTeamCreated(nuovaSquadra);
             }
         };
@@ -145,27 +144,15 @@ public class LeagueDetailPanel extends JPanel {
     
     // Callback quando squadra viene creata
     public void onTeamCreated(SquadraFantacalcio nuovaSquadra) {
-        // Assicurati che la squadra abbia l'ID della lega
-        nuovaSquadra.setIdLega(lega.getIdLega());
-        
         this.squadraUtente = nuovaSquadra;
         
-        // Il collegamento alla lega dovrebbe essere automatico se usiamo il DAO aggiornato
-        boolean collegata = squadraDAO.collegaSquadraALega(nuovaSquadra.getIdSquadraFantacalcio(), lega.getIdLega());
+        // Il collegamento alla lega è già fatto automaticamente dal DAO
+        showTeamManagement();
+        parentFrame.updateTitle();
         
-        if (collegata) {
-            showTeamManagement();
-            parentFrame.updateTitle();
-            
-            JOptionPane.showMessageDialog(this,
-                "Squadra '" + nuovaSquadra.getNomeSquadra() + "' creata e collegata alla lega!",
-                "Successo",
-                JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            JOptionPane.showMessageDialog(this,
-                "Squadra creata ma errore nel collegamento alla lega.",
-                "Attenzione",
-                JOptionPane.WARNING_MESSAGE);
-        }
+        JOptionPane.showMessageDialog(this,
+            "Squadra '" + nuovaSquadra.getNomeSquadra() + "' creata e collegata alla lega!",
+            "Successo",
+            JOptionPane.INFORMATION_MESSAGE);
     }
 }

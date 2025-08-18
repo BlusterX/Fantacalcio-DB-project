@@ -9,13 +9,11 @@ public class SquadraFantacalcio {
     
     private int idSquadraFantacalcio;
     private String nomeSquadra;
-    private int idUtente;
     private int budgetTotale;
     private int budgetRimanente;
     private LocalDateTime dataCreazione;
     private LocalDateTime dataUltimaModifica;
     private boolean completata;
-    private int idLega;
     private List<Calciatore> calciatori;
     
     // Costanti per regole fantacalcio
@@ -37,20 +35,16 @@ public class SquadraFantacalcio {
         this.completata = false;
     }
     
-    public SquadraFantacalcio(String nomeSquadra, int idUtente, int idLega) {
+    public SquadraFantacalcio(String nomeSquadra) {
         this();
         this.nomeSquadra = nomeSquadra;
-        this.idUtente = idUtente;
-        this.idLega = idLega;
     }
     
     // Costruttore completo (per lettura da database)
-    public SquadraFantacalcio(int idSquadraFantacalcio, String nomeSquadra, int idUtente, 
-                             int budgetTotale, int budgetRimanente, LocalDateTime dataCreazione,
+    public SquadraFantacalcio(int idSquadraFantacalcio, String nomeSquadra, int budgetTotale, int budgetRimanente, LocalDateTime dataCreazione,
                              LocalDateTime dataUltimaModifica, boolean completata) {
         this.idSquadraFantacalcio = idSquadraFantacalcio;
         this.nomeSquadra = nomeSquadra;
-        this.idUtente = idUtente;
         this.budgetTotale = budgetTotale;
         this.budgetRimanente = budgetRimanente;
         this.dataCreazione = dataCreazione;
@@ -72,24 +66,9 @@ public class SquadraFantacalcio {
         return nomeSquadra;
     }
     
+
     public void setNomeSquadra(String nomeSquadra) {
         this.nomeSquadra = nomeSquadra;
-    }
-    
-    public int getIdUtente() {
-        return idUtente;
-    }
-    
-    public void setIdUtente(int idUtente) {
-        this.idUtente = idUtente;
-    }
-
-    public int getIdLega() { 
-        return idLega; 
-    }
-
-    public void setIdLega(int idLega) { 
-        this.idLega = idLega; 
     }
     
     public int getBudgetTotale() {

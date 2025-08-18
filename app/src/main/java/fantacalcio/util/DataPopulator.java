@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import fantacalcio.dao.CalciatoreDAO;
-import fantacalcio.dao.CalciatoreDAO.CalciatoreConSquadra;
 import fantacalcio.dao.SquadraSerieADAO;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraSerieA;
@@ -372,12 +371,9 @@ public class DataPopulator {
             return false;
         }
     }
-    
+
     private boolean calciatoreEsiste(String nome, String cognome) {
-        List<CalciatoreConSquadra> esistenti = calciatoreDAO.trovaTuttiICalciatoriConSquadra();
-        return esistenti.stream()
-                    .anyMatch(cs -> cs.getCalciatore().getNome().equals(nome) && 
-                                    cs.getCalciatore().getCognome().equals(cognome));
+        return calciatoreDAO.calciatoreEsiste(nome, cognome); // Usa il metodo del DAO
     }
     
     /**

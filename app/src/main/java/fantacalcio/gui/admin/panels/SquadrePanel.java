@@ -421,18 +421,22 @@ public class SquadrePanel extends JPanel {
                 @Override
                 protected void done() {
                     loadData();
-                    Component[] components = parentFrame.getContentPane().getComponents();
-                    for (Component c : components) {
-                        if (c instanceof fantacalcio.gui.admin.panels.CalciatoriPanel calciatoriPanel) {
-                            calciatoriPanel.loadData();
+                    
+                    // Controlla se parentFrame non è null prima di usarlo
+                    if (parentFrame != null) {
+                        Component[] components = parentFrame.getContentPane().getComponents();
+                        for (Component c : components) {
+                            if (c instanceof fantacalcio.gui.admin.panels.CalciatoriPanel calciatoriPanel) {
+                                calciatoriPanel.loadData();
+                            }
                         }
+                        parentFrame.notifySquadreChanged();
                     }
-                    parentFrame.notifySquadreChanged();
                     
                     // Mostra risultati finali
                     int finalSquadre = squadraDAO.contaSquadre();
                     int finalCalciatori = calciatoreDAO.contaCalciatoriPerRuolo().values()
-                                                      .stream().mapToInt(Integer::intValue).sum();
+                                                    .stream().mapToInt(Integer::intValue).sum();
                     
                     String risultato = "Setup completato con successo!\n\n";
                     risultato += "Database popolato con:\n";

@@ -108,11 +108,22 @@ public class DatabaseConnection {
      * Restituisce la connessione al database
      */
     public Connection getConnection() throws SQLException {
-        // Verifica se la connessione è ancora valida
-        if (connection == null || connection.isClosed()) {
-            establishConnection();
+        // Crea sempre una nuova connessione invece di riusare quella esistente
+        try {
+            Class.forName(driver);
+            return DriverManager.getConnection(url, username, password);
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Driver MySQL non trovato: " + driver, e);
         }
-        return connection;
+    }
+
+    public Connection getNewConnection() throws SQLException {
+        try {
+            Class.forName(driver);
+            return DriverManager.getConnection(url, username, password);
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Driver MySQL non trovato: " + driver, e);
+        }
     }
     
     /**

@@ -50,6 +50,7 @@ public class CreateTeamPanel extends JPanel {
     
     private final UserMainFrame parentFrame;
     private final Utente utenteCorrente;
+    private final int idLega;
     private final SquadraFantacalcioDAO squadraDAO;
     private final CalciatoreDAO calciatoreDAO;
     
@@ -79,9 +80,10 @@ public class CreateTeamPanel extends JPanel {
     // Cache dei calciatori per evitare ricaricamenti
     private List<CalciatoreConSquadra> calciatori;
     
-    public CreateTeamPanel(UserMainFrame parentFrame, Utente utente) {
+    public CreateTeamPanel(UserMainFrame parentFrame, Utente utente, int idLega) {
         this.parentFrame = parentFrame;
         this.utenteCorrente = utente;
+        this.idLega = idLega;
         this.squadraDAO = new SquadraFantacalcioDAO();
         this.calciatoreDAO = new CalciatoreDAO();
         
@@ -473,32 +475,35 @@ public class CreateTeamPanel extends JPanel {
                 JOptionPane.WARNING_MESSAGE);
             return;
         }
-        
-        // Verifica nome duplicato
-        if (squadraDAO.nomeSquadraEsiste(nomeSquadra, utenteCorrente.getIdUtente())) {
-            JOptionPane.showMessageDialog(this,
-                "Hai già una squadra con questo nome!",
-                "Nome Duplicato",
-                JOptionPane.ERROR_MESSAGE);
-            return;
+
+        // DEBUG: Verifica quanti calciatori ci sono
+        System.out.println("DEBUG: Calciatori nella squadra: " + squadraInCostruzione.getCalciatori().size());
+        for (Calciatore c : squadraInCostruzione.getCalciatori()) {
+            System.out.println("DEBUG: - " + c.getNomeCompleto() + " (ID: " + c.getIdCalciatore() + ")");
         }
-        
-        // Crea la squadra
+            
         squadraInCostruzione.setNomeSquadra(nomeSquadra);
         
         SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
             @Override
             protected Boolean doInBackground() throws Exception {
                 // Crea la squadra
-                if (!squadraDAO.creaSquadra(squadraInCostruzione)) {
+                boolean squadraCreata = squadraDAO.creaSquadraPerLega(
+                    squadraInCostruzione, 
+                    utenteCorrente.getIdUtente(), 
+                    idLega
+                );
+                
+                if (!squadraCreata) {
                     return false;
                 }
                 
-                // Aggiungi tutti i calciatori
+                // Aggiungi tutti i calciatori alla squadra
                 for (Calciatore calciatore : squadraInCostruzione.getCalciatori()) {
                     if (!squadraDAO.aggiungiCalciatoreAllaSquadra(
                             squadraInCostruzione.getIdSquadraFantacalcio(),
                             calciatore.getIdCalciatore())) {
+                        System.err.println("Errore aggiunta calciatore: " + calciatore.getNomeCompleto());
                         return false;
                     }
                 }
@@ -517,17 +522,11 @@ public class CreateTeamPanel extends JPanel {
                             "Successo",
                             JOptionPane.INFORMATION_MESSAGE);
                         
-                        // CAMBIARE QUESTE RIGHE:
-                        // resetSquadra();
-                        // txtNomeSquadra.setText("");
-                        // parentFrame.notifySquadraCreata();
-                        
-                        // CON QUESTA:
                         onTeamCreatedSuccess(squadraInCostruzione);
                         
                     } else {
                         JOptionPane.showMessageDialog(CreateTeamPanel.this,
-                            "Errore durante la creazione della squadra.",
+                            "Errore: Potresti già avere una squadra in questa lega!",
                             "Errore",
                             JOptionPane.ERROR_MESSAGE);
                     }
@@ -558,14 +557,10 @@ public class CreateTeamPanel extends JPanel {
     }
     
     private void resetSquadra() {
-        squadraInCostruzione = new SquadraFantacalcio("", utenteCorrente.getIdUtente(), 0);
+        squadraInCostruzione = new SquadraFantacalcio("");
         updateSquadraStatus();
     }
 
-    /**
-     * Metodo chiamato quando una squadra viene creata con successo
-     * Può essere overridden dalle sottoclassi
-     */
     protected void onTeamCreatedSuccess(SquadraFantacalcio squadraCreata) {
         // Comportamento di default: reset e notifica parent
         resetSquadra();

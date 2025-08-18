@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -148,94 +147,17 @@ public class JoinLeaguePanel extends JPanel {
     private void createButtons() {
         btnJoinLega = new JButton("🔗 Unisciti alla Lega");
         btnRefresh = new JButton("🔄 Aggiorna");
-        btnCreaLega = new JButton("🏆 Crea Nuova Lega"); // NUOVO
         
         // Stile pulsanti
         styleButton(btnJoinLega, new Color(76, 175, 80));
         styleButton(btnRefresh, new Color(158, 158, 158));
-        styleButton(btnCreaLega, new Color(156, 39, 176)); // NUOVO
-        
-        // Tooltip informativi
-        btnJoinLega.setToolTipText("Unisciti a una lega usando il codice di accesso");
-        btnCreaLega.setToolTipText("Crea una nuova lega e diventa admin"); // NUOVO
         
         // Event listeners
         btnJoinLega.addActionListener(this::joinLega);
         btnRefresh.addActionListener(e -> refreshData());
-        btnCreaLega.addActionListener(this::creaLega); // NUOVO
     }
 
-    private void creaLega(ActionEvent e) {
-        String nomeLega = JOptionPane.showInputDialog(this,
-            "Inserisci il nome della nuova lega:",
-            "Crea Nuova Lega",
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (nomeLega != null && !nomeLega.trim().isEmpty()) {
-            final String nomeLegaFinal = nomeLega.trim();
-            
-            // Verifica se esiste già una lega con questo nome per questo utente
-            if (legaDAO.nomeLegaEsiste(nomeLegaFinal, utenteCorrente.getIdUtente())) {
-                JOptionPane.showMessageDialog(this,
-                    "Hai già una lega con questo nome!",
-                    "Nome Duplicato",
-                    JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            final Lega nuovaLega = new Lega(nomeLegaFinal, utenteCorrente.getIdUtente());
-            
-            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
-                @Override
-                protected Boolean doInBackground() throws Exception {
-                    return legaDAO.creaLega(nuovaLega);
-                }
-                
-                @Override
-                protected void done() {
-                    try {
-                        boolean successo = get();
-                        
-                        if (successo) {
-                            JOptionPane.showMessageDialog(JoinLeaguePanel.this,
-                                "Lega '" + nomeLegaFinal + "' creata con successo!\n" +
-                                "Codice di accesso: " + nuovaLega.getCodiceAccesso() + "\n" +
-                                "Condividi questo codice con i tuoi amici!",
-                                "Lega Creata",
-                                JOptionPane.INFORMATION_MESSAGE);
-                            
-                            refreshData();
-                            
-                            // Chiedi se vuole aprire subito la lega
-                            int apri = JOptionPane.showConfirmDialog(JoinLeaguePanel.this,
-                                "Vuoi aprire subito la gestione della lega?",
-                                "Apri Lega",
-                                JOptionPane.YES_NO_OPTION,
-                                JOptionPane.QUESTION_MESSAGE);
-                            
-                            if (apri == JOptionPane.YES_OPTION) {
-                                parentFrame.openLeagueDetail(nuovaLega);
-                            }
-                            
-                        } else {
-                            JOptionPane.showMessageDialog(JoinLeaguePanel.this,
-                                "Errore durante la creazione della lega.",
-                                "Errore",
-                                JOptionPane.ERROR_MESSAGE);
-                        }
-                        
-                    } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(JoinLeaguePanel.this,
-                            "Errore: " + ex.getMessage(),
-                            "Errore",
-                            JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            };
-            
-            worker.execute();
-        }
-    }
+
     
     private void createStats() {
         lblNumLeghe = new JLabel("0");
@@ -294,11 +216,10 @@ public class JoinLeaguePanel extends JPanel {
     
     private JPanel createFormPanel() {
         JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBorder(BorderFactory.createTitledBorder("Gestione Leghe"));
+        formPanel.setBorder(BorderFactory.createTitledBorder("Unisciti a una Lega"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         
-        // Prima riga - Join lega esistente
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(new JLabel("Codice Accesso:"), gbc);
         
@@ -309,16 +230,8 @@ public class JoinLeaguePanel extends JPanel {
         formPanel.add(btnJoinLega, gbc);
         
         gbc.gridx = 3;
-        formPanel.add(btnRefresh, gbc);
-        
-        // Seconda riga - Crea nuova lega
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.gridwidth = 4;
-        JPanel createPanel = new JPanel(new FlowLayout());
-        createPanel.add(btnCreaLega);
-        formPanel.add(createPanel, gbc);
-        gbc.gridwidth = 1; // Reset
-        
+        formPanel.add(btnRefresh, gbc);   
+             
         return formPanel;
     }
     

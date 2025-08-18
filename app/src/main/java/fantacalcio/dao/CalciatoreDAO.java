@@ -32,11 +32,10 @@ public class CalciatoreDAO {
      * Inserisce un nuovo calciatore e la sua relazione con la squadra Serie A
      */
     public boolean inserisciCalciatore(Calciatore calciatore, int idSquadraSerieA) {
-        // IMPORTANTE: Non usare variabile Connection esterna, usa try-with-resources
         String sqlCalciatore = "INSERT INTO CALCIATORE (Nome, Cognome, Ruolo, Costo, ID_Fascia) VALUES (?, ?, ?, ?, ?)";
         String sqlAppartenenza = "INSERT INTO APPARTENENZA_SQUADRA_SERIE_A (ID_Calciatore, ID_SquadraA) VALUES (?, ?)";
         
-        try (Connection conn = dbConnection.getConnection()) {
+        try (Connection conn = dbConnection.getNewConnection()) {
             conn.setAutoCommit(false);
             
             // Controlla se esiste già
@@ -77,9 +76,7 @@ public class CalciatoreDAO {
                 }
             } catch (SQLException e) {
                 conn.rollback();
-                throw e; // Rilancia l'eccezione per gestirla nel catch esterno
-            } finally {
-                conn.setAutoCommit(true);
+                throw e;
             }
             
         } catch (SQLException e) {
@@ -89,7 +86,7 @@ public class CalciatoreDAO {
         return false;
     }
 
-    private boolean calciatoreEsiste(String nome, String cognome) {
+    public boolean calciatoreEsiste(String nome, String cognome) {
         String sql = "SELECT COUNT(*) FROM CALCIATORE WHERE Nome = ? AND Cognome = ?";
         
         try (Connection conn = dbConnection.getConnection();

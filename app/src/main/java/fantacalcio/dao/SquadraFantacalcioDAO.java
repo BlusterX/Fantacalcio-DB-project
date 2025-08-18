@@ -25,43 +25,68 @@ public class SquadraFantacalcioDAO {
         this.calciatoreDAO = new CalciatoreDAO();
     }
     
-    /**
-     * Crea una nuova squadra fantacalcio e la collega opzionalmente a una lega
-     */
-    public boolean creaSquadra(SquadraFantacalcio squadra) {
-        String sql = "INSERT INTO SQUADRA_FANTACALCIO " +
-                    "(Nome, ID_Utente, Budget_totale, Budget_rimanente, Data_creazione, Data_ultima_modifica, Completata) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public boolean creaSquadraPerLega(SquadraFantacalcio squadra, int idUtente, int idLega) {
+
+        if (trovaSquadraUtentePerLega(idUtente, idLega).isPresent()) {
+            System.err.println("L'utente ha già una squadra in questa lega!");
+            return false;
+        }
         
-        try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String sqlSquadra = "INSERT INTO SQUADRA_FANTACALCIO " +
+                        "(Nome, Budget_totale, Budget_rimanente, Data_creazione, Data_ultima_modifica, Completata) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)";
+        String sqlCrea = "INSERT INTO CREA (ID_Utente, ID_Squadra) VALUES (?, ?)";
+        String sqlPartecipa = "INSERT INTO PARTECIPA (ID_Squadra, ID_Lega) VALUES (?, ?)";
+        
+        try (Connection conn = dbConnection.getNewConnection()) {
+            conn.setAutoCommit(false);
             
-            stmt.setString(1, squadra.getNomeSquadra());
-            stmt.setInt(2, squadra.getIdUtente());
-            stmt.setInt(3, squadra.getBudgetTotale());
-            stmt.setInt(4, squadra.getBudgetRimanente());
-            stmt.setTimestamp(5, Timestamp.valueOf(squadra.getDataCreazione()));
-            stmt.setTimestamp(6, Timestamp.valueOf(squadra.getDataUltimaModifica()));
-            stmt.setBoolean(7, squadra.isCompletata());
-            
-            int righeInserite = stmt.executeUpdate();
-            
-            if (righeInserite > 0) {
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        squadra.setIdSquadraFantacalcio(generatedKeys.getInt(1));
+            try {
+                // 1. Inserisci la squadra
+                try (PreparedStatement stmtSquadra = conn.prepareStatement(sqlSquadra, Statement.RETURN_GENERATED_KEYS)) {
+                    stmtSquadra.setString(1, squadra.getNomeSquadra());
+                    stmtSquadra.setInt(2, squadra.getBudgetTotale());
+                    stmtSquadra.setInt(3, squadra.getBudgetRimanente());
+                    stmtSquadra.setTimestamp(4, Timestamp.valueOf(squadra.getDataCreazione()));
+                    stmtSquadra.setTimestamp(5, Timestamp.valueOf(squadra.getDataUltimaModifica()));
+                    stmtSquadra.setBoolean(6, squadra.isCompletata());
+                    
+                    int righeInserite = stmtSquadra.executeUpdate();
+                    
+                    if (righeInserite > 0) {
+                        try (ResultSet generatedKeys = stmtSquadra.getGeneratedKeys()) {
+                            if (generatedKeys.next()) {
+                                squadra.setIdSquadraFantacalcio(generatedKeys.getInt(1));
+                            }
+                        }
+                        
+                        // 2. Inserisci nella tabella CREA
+                        try (PreparedStatement stmtCrea = conn.prepareStatement(sqlCrea)) {
+                            stmtCrea.setInt(1, idUtente);
+                            stmtCrea.setInt(2, squadra.getIdSquadraFantacalcio());
+                            stmtCrea.executeUpdate();
+                        }
+                        
+                        // 3. Inserisci nella tabella PARTECIPA
+                        try (PreparedStatement stmtPartecipa = conn.prepareStatement(sqlPartecipa)) {
+                            stmtPartecipa.setInt(1, squadra.getIdSquadraFantacalcio());
+                            stmtPartecipa.setInt(2, idLega);
+                            stmtPartecipa.executeUpdate();
+                        }
+                        
+                        conn.commit();
+                        return true;
                     }
                 }
-                System.out.println("Squadra fantacalcio creata: " + squadra.getNomeSquadra() + " (ID: " + squadra.getIdSquadraFantacalcio() + ")");
-                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
             
         } catch (SQLException e) {
-            System.err.println("Errore creazione squadra fantacalcio: " + e.getMessage());
-            if (e.getMessage().contains("Duplicate entry")) {
-                System.err.println("   Nome squadra già esistente per questo utente!");
-            }
+            System.err.println("Errore creazione squadra: " + e.getMessage());
         }
+        
         return false;
     }
     
@@ -127,25 +152,22 @@ public class SquadraFantacalcioDAO {
      */
     public List<SquadraFantacalcio> trovaSquadrePerUtente(int idUtente) {
         List<SquadraFantacalcio> squadre = new ArrayList<>();
-        String sql = "SELECT * FROM SQUADRA_FANTACALCIO WHERE ID_Utente = ? ORDER BY Data_creazione DESC";
+        String sql = "SELECT s.* FROM SQUADRA_FANTACALCIO s " +
+                    "JOIN CREA c ON s.ID_Squadra = c.ID_Squadra " +
+                    "WHERE c.ID_Utente = ? ORDER BY s.Data_creazione DESC";
         
         try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, idUtente);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     SquadraFantacalcio squadra = creaSquadraDaResultSet(rs);
-                    
-                    // Carica anche i calciatori per ogni squadra
                     caricaCalciatori(squadra);
-                    
                     squadre.add(squadra);
                 }
             }
-            
-            System.out.println("Trovate " + squadre.size() + " squadre per utente ID " + idUtente);
             
         } catch (SQLException e) {
             System.err.println("Errore ricerca squadre per utente: " + e.getMessage());
@@ -213,6 +235,9 @@ public class SquadraFantacalcioDAO {
     public boolean aggiungiCalciatoreAllaSquadra(int idSquadra, int idCalciatore) {
         String sql = "INSERT INTO COMPOSIZIONE (ID_Squadra, ID_Calciatore) VALUES (?, ?)";
         
+        System.out.println("DEBUG: Aggiunta calciatore - Squadra ID: " + idSquadra + ", Calciatore ID: " + idCalciatore);
+
+
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
@@ -323,9 +348,10 @@ public class SquadraFantacalcioDAO {
                     "ORDER BY c.Ruolo, c.Cognome, c.Nome";
         
         List<Calciatore> calciatori = new ArrayList<>();
-        
+        System.out.println("DEBUG: Caricamento calciatori per squadra ID: " + squadra.getIdSquadraFantacalcio());
+        System.out.println("DEBUG: Query: " + sql);
         try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setInt(1, squadra.getIdSquadraFantacalcio());
             
@@ -399,8 +425,9 @@ public class SquadraFantacalcioDAO {
     public Optional<SquadraFantacalcio> trovaSquadraUtentePerLega(int idUtente, int idLega) {
         String sql = """
             SELECT s.* FROM SQUADRA_FANTACALCIO s 
+            JOIN CREA c ON s.ID_Squadra = c.ID_Squadra 
             JOIN PARTECIPA p ON s.ID_Squadra = p.ID_Squadra 
-            WHERE s.ID_Utente = ? AND p.ID_Lega = ?
+            WHERE c.ID_Utente = ? AND p.ID_Lega = ?
             """;
         
         try (Connection conn = dbConnection.getConnection();
@@ -412,7 +439,6 @@ public class SquadraFantacalcioDAO {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     SquadraFantacalcio squadra = creaSquadraDaResultSet(rs);
-                    squadra.setIdLega(idLega);
                     caricaCalciatori(squadra);
                     return Optional.of(squadra);
                 }
@@ -423,48 +449,10 @@ public class SquadraFantacalcioDAO {
         return Optional.empty();
     }
 
-    public boolean creaSquadraPerLega(SquadraFantacalcio squadra, int idLega) {
-        Connection conn = null;
-        try {
-            conn = dbConnection.getConnection();
-            conn.setAutoCommit(false);
-            
-            // 1. Crea la squadra
-            if (!creaSquadra(squadra)) {
-                return false;
-            }
-            
-            // 2. Collegala automaticamente alla lega
-            if (!collegaSquadraALega(squadra.getIdSquadraFantacalcio(), idLega)) {
-                conn.rollback();
-                return false;
-            }
-            
-            squadra.setIdLega(idLega);
-            conn.commit();
-            return true;
-            
-        } catch (SQLException e) {
-            try {
-                if (conn != null) conn.rollback();
-            } catch (SQLException ex) {}
-            System.err.println("Errore creazione squadra per lega: " + e.getMessage());
-            return false;
-        } finally {
-            try {
-                if (conn != null) conn.setAutoCommit(true);
-            } catch (SQLException ex) {}
-        }
-    }
-    
-    /**
-     * Metodo helper per creare un oggetto SquadraFantacalcio da un ResultSet
-     */
     private SquadraFantacalcio creaSquadraDaResultSet(ResultSet rs) throws SQLException {
         return new SquadraFantacalcio(
-            rs.getInt("ID_Squadra"), // CORREZIONE: era ID_SquadraFantacalcio
+            rs.getInt("ID_Squadra"),
             rs.getString("Nome"),
-            rs.getInt("ID_Utente"),
             rs.getInt("Budget_totale"),
             rs.getInt("Budget_rimanente"),
             rs.getTimestamp("Data_creazione").toLocalDateTime(),
