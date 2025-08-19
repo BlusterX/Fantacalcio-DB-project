@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 import fantacalcio.model.ScontroLega;
+import fantacalcio.service.MatchSimulationService;
 import fantacalcio.util.DatabaseConnection; 
 
 public class ScontroLegaDAO {
@@ -84,7 +85,216 @@ public class ScontroLegaDAO {
             return false;
         }
     }
-    
+
+    public boolean avviaLegaManualmente(int idLega) {
+        // Verifica prerequisiti
+        if (!verificaAvvioLega(idLega)) {
+            return false;
+        }
+        
+        // Genera calendario completo (tutte le 38 giornate se necessario)
+        List<Integer> squadreIds = getSquadreCompleteLega(idLega);
+        if (!generaCalendarioCompleto(idLega, squadreIds)) {
+            return false;
+        }
+        
+        // Avvia la lega
+        return avviaLega(idLega);
+    }
+
+    /**
+     * Genera calendario completo per tutte le giornate
+     */
+    private boolean generaCalendarioCompleto(int idLega, List<Integer> squadreIds) {
+        if (squadreIds.size() % 2 != 0 || squadreIds.size() < 2) {
+            return false;
+        }
+        
+        String sql = "INSERT INTO SCONTRO_LEGA (ID_Lega, ID_Squadra_1, ID_Squadra_2, Giornata) VALUES (?, ?, ?, ?)";
+        
+        try (Connection conn = dbConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                int numSquadre = squadreIds.size();
+                int numGiornate = (numSquadre - 1) * 2; // Andata e ritorno
+                
+                // Andata
+                for (int giornata = 1; giornata <= numSquadre - 1; giornata++) {
+                    generaPartiteGiornata(stmt, idLega, squadreIds, giornata);
+                }
+                
+                // Ritorno (squadre invertite)
+                for (int giornata = numSquadre; giornata <= numGiornate; giornata++) {
+                    int giornataAndata = giornata - (numSquadre - 1);
+                    generaPartiteGiornataInvertite(stmt, idLega, squadreIds, giornata, giornataAndata);
+                }
+                
+                stmt.executeBatch();
+                conn.commit();
+                
+                System.out.println("Calendario completo generato: " + numGiornate + " giornate");
+                return true;
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Errore generazione calendario: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Genera le partite per una singola giornata (andata)
+     */
+    private void generaPartiteGiornata(PreparedStatement stmt, int idLega, List<Integer> squadreIds, int giornata) throws SQLException {
+        List<Integer> squadre = new ArrayList<>(squadreIds);
+        Collections.shuffle(squadre); // Randomizza per variare gli accoppiamenti
+        
+        int numSquadre = squadre.size();
+        
+        // Algoritmo round-robin per generare gli accoppiamenti
+        for (int i = 0; i < numSquadre / 2; i++) {
+            int squadra1 = squadre.get(i);
+            int squadra2 = squadre.get(numSquadre - 1 - i);
+            
+            stmt.setInt(1, idLega);
+            stmt.setInt(2, squadra1);
+            stmt.setInt(3, squadra2);
+            stmt.setInt(4, giornata);
+            stmt.addBatch();
+        }
+        
+        // Ruota le squadre per la prossima giornata (tranne la prima)
+        if (giornata < numSquadre - 1) {
+            Integer ultima = squadre.remove(squadre.size() - 1);
+            squadre.add(1, ultima);
+        }
+    }
+
+    /**
+     * Genera le partite per una giornata di ritorno (squadre invertite)
+     */
+    private void generaPartiteGiornataInvertite(PreparedStatement stmt, int idLega, List<Integer> squadreIds, int giornata, int giornataAndata) throws SQLException {
+        // Ricrea lo stesso ordine dell'andata per questa giornata specifica
+        List<Integer> squadre = new ArrayList<>(squadreIds);
+        
+        // Applica le stesse rotazioni dell'andata per ottenere gli stessi accoppiamenti
+        for (int g = 1; g < giornataAndata; g++) {
+            Integer ultima = squadre.remove(squadre.size() - 1);
+            squadre.add(1, ultima);
+        }
+        
+        int numSquadre = squadre.size();
+        
+        // Genera gli accoppiamenti con squadre invertite (ritorno)
+        for (int i = 0; i < numSquadre / 2; i++) {
+            int squadra1 = squadre.get(numSquadre - 1 - i); // Invertito rispetto all'andata
+            int squadra2 = squadre.get(i);                   // Invertito rispetto all'andata
+            
+            stmt.setInt(1, idLega);
+            stmt.setInt(2, squadra1);
+            stmt.setInt(3, squadra2);
+            stmt.setInt(4, giornata);
+            stmt.addBatch();
+        }
+    }
+
+    /**
+     * Ottiene le squadre complete di una lega
+     */
+    public List<Integer> getSquadreCompleteLega(int idLega) {
+        List<Integer> squadreIds = new ArrayList<>();
+        String sql = """
+            SELECT s.ID_Squadra 
+            FROM SQUADRA_FANTACALCIO s
+            JOIN PARTECIPA p ON s.ID_Squadra = p.ID_Squadra
+            WHERE p.ID_Lega = ? AND s.Completata = true
+            """;
+        
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, idLega);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    squadreIds.add(rs.getInt("ID_Squadra"));
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Errore caricamento squadre complete: " + e.getMessage());
+        }
+        
+        return squadreIds;
+    }
+
+    /**
+     * Simula tutte le giornate in sequenza
+     */
+    public void simulaTutteLeGiornate(int idLega) {
+        String statoLega = getStatoLega(idLega);
+        if (!"IN_CORSO".equals(statoLega)) {
+            System.out.println("La lega non è in corso");
+            return;
+        }
+        
+        MatchSimulationService simulator = new MatchSimulationService();
+        int giornataCorrente = getGiornataCorrente(idLega);
+        int maxGiornate = getMaxGiornate(idLega);
+        
+        // Simula dalla giornata corrente fino alla fine
+        for (int giornata = giornataCorrente; giornata <= maxGiornate; giornata++) {
+            simulator.simulaGiornata(idLega, giornata);
+            aggiornaGiornataCorrente(idLega, giornata + 1);
+            
+            System.out.println("Simulata giornata " + giornata + "/" + maxGiornate);
+        }
+        
+        // Termina la lega
+        terminaLega(idLega);
+    }
+
+    private int getMaxGiornate(int idLega) {
+        String sql = "SELECT MAX(Giornata) FROM SCONTRO_LEGA WHERE ID_Lega = ?";
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idLega);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 38;
+            }
+        } catch (SQLException e) {
+            return 38; // Default
+        }
+    }
+        
+    private void aggiornaGiornataCorrente(int idLega, int nuovaGiornata) {
+        String sql = "UPDATE LEGA SET Giornata_Corrente = ? WHERE ID_Lega = ?";
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, nuovaGiornata);
+            stmt.setInt(2, idLega);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Errore aggiornamento giornata: " + e.getMessage());
+        }
+    }
+
+    private void terminaLega(int idLega) {
+        String sql = "UPDATE LEGA SET Stato = 'TERMINATA' WHERE ID_Lega = ?";
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idLega);
+            stmt.executeUpdate();
+            System.out.println("Lega " + idLega + " terminata");
+        } catch (SQLException e) {
+            System.err.println("Errore terminazione lega: " + e.getMessage());
+        }
+    }
     /**
      * Avvia la lega (imposta stato e data inizio)
      */

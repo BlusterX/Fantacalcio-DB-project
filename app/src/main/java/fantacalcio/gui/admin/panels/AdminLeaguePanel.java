@@ -11,6 +11,11 @@ import java.awt.GridBagLayout;
 import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -31,10 +36,12 @@ import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 
 import fantacalcio.dao.LegaDAO;
+import fantacalcio.dao.ScontroLegaDAO;
 import fantacalcio.gui.MainFrame;
 import fantacalcio.model.Lega;
 import fantacalcio.model.Utente;
 import fantacalcio.util.DataPopulator;
+import fantacalcio.util.DatabaseConnection;
 
 /**
  * Panel per la gestione delle leghe da parte dell'admin
@@ -54,7 +61,8 @@ public class AdminLeaguePanel extends JPanel {
     
     // Lega attualmente selezionata
     private Lega legaSelezionata;
-    
+    private final ScontroLegaDAO scontroDAO;
+
     // Statistiche
     private JLabel lblNumLeghe, lblPartecipantiTotali;
     
@@ -62,7 +70,8 @@ public class AdminLeaguePanel extends JPanel {
         this.parentFrame = parentFrame;
         this.adminUtente = adminUtente;
         this.legaDAO = new LegaDAO();
-        
+        this.scontroDAO = new ScontroLegaDAO();
+
         initializeComponents();
         setupLayout();
         loadData();
@@ -241,23 +250,206 @@ public class AdminLeaguePanel extends JPanel {
         rightPanel.setBorder(BorderFactory.createTitledBorder("Statistiche e Azioni"));
         rightPanel.setPreferredSize(new Dimension(250, 0));
         
-        // Statistiche
+        // Statistiche esistenti
         JPanel statsPanel = createStatsPanel();
         
         // Separator
         JSeparator separator = new JSeparator();
         
-        // Pannello popolamento
+        // NUOVO: Pannello gestione lega
+        JPanel gestioneLegaPanel = createGestioneLegaPanel();
+        
+        // Pannello popolamento esistente
         JPanel populatePanel = createPopulatePanel();
         
         rightPanel.add(statsPanel);
         rightPanel.add(Box.createVerticalStrut(10));
         rightPanel.add(separator);
         rightPanel.add(Box.createVerticalStrut(10));
+        rightPanel.add(gestioneLegaPanel);
+        rightPanel.add(Box.createVerticalStrut(10));
         rightPanel.add(populatePanel);
         rightPanel.add(Box.createVerticalGlue());
         
         return rightPanel;
+    }
+
+    private JPanel createGestioneLegaPanel() {
+        JPanel gestionePanel = new JPanel();
+        gestionePanel.setLayout(new BoxLayout(gestionePanel, BoxLayout.Y_AXIS));
+        gestionePanel.setBorder(BorderFactory.createTitledBorder("Gestione Lega"));
+        
+        JLabel lblInfo = new JLabel("Seleziona lega:");
+        lblInfo.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        
+        JButton btnAvviaLega = new JButton("🚀 Avvia Lega");
+        JButton btnSimulaCompleta = new JButton("⚽ Simula Stagione");
+        
+        styleButton(btnAvviaLega, new Color(76, 175, 80));
+        styleButton(btnSimulaCompleta, new Color(255, 152, 0));
+        
+        btnAvviaLega.addActionListener(this::avviaLega);
+        btnSimulaCompleta.addActionListener(this::simulaStagioneCompleta);
+        
+        gestionePanel.add(lblInfo);
+        gestionePanel.add(Box.createVerticalStrut(5));
+        gestionePanel.add(btnAvviaLega);
+        gestionePanel.add(Box.createVerticalStrut(5));
+        gestionePanel.add(btnSimulaCompleta);
+        
+        JLabel lblInfoGestione = new JLabel("<html><small>Avvia: genera calendario e inizia<br>Simula: calcola tutti i risultati</small></html>");
+        lblInfoGestione.setForeground(new Color(100, 100, 100));
+        gestionePanel.add(Box.createVerticalStrut(5));
+        gestionePanel.add(lblInfoGestione);
+        
+        return gestionePanel;
+    }
+
+    private void avviaLega(ActionEvent e) {
+        Lega legaSelezionata = (Lega) comboLeghePopola.getSelectedItem();
+        
+        if (legaSelezionata == null) {
+            JOptionPane.showMessageDialog(this,
+                "Seleziona una lega da avviare!",
+                "Attenzione",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Verifica stato lega
+        String statoLega = scontroDAO.getStatoLega(legaSelezionata.getIdLega());
+        if (!"CREATA".equals(statoLega)) {
+            JOptionPane.showMessageDialog(this,
+                "La lega è già stata avviata o è terminata.\nStato attuale: " + statoLega,
+                "Lega non disponibile",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Conta squadre complete
+        List<Integer> squadreComplete = getSquadreCompleteLega(legaSelezionata.getIdLega());
+        
+        String message = "Avviare la lega '" + legaSelezionata.getNome() + "'?\n\n";
+        message += "Squadre complete: " + squadreComplete.size() + "\n";
+        message += "Questo genererà il calendario completo degli scontri.\n\n";
+        message += "⚠️ ATTENZIONE: Dopo l'avvio nessuno potrà più entrare o uscire dalla lega!\n\n";
+        message += "Procedere?";
+        
+        int conferma = JOptionPane.showConfirmDialog(this,
+            message,
+            "Conferma Avvio Lega",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (conferma == JOptionPane.YES_OPTION) {
+            if (scontroDAO.avviaLegaManualmente(legaSelezionata.getIdLega())) {
+                JOptionPane.showMessageDialog(this,
+                    "Lega '" + legaSelezionata.getNome() + "' avviata con successo!\n" +
+                    "Calendario generato per tutte le giornate.\n" +
+                    "Ora puoi simulare la stagione completa.",
+                    "Lega Avviata",
+                    JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "Errore nell'avvio della lega.\n" +
+                    "Verifica che ci siano abbastanza squadre complete (minimo 2, numero pari).",
+                    "Errore",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    private List<Integer> getSquadreCompleteLega(int idLega) {
+        List<Integer> squadreIds = new ArrayList<>();
+        String sql = """
+            SELECT s.ID_Squadra 
+            FROM SQUADRA_FANTACALCIO s
+            JOIN PARTECIPA p ON s.ID_Squadra = p.ID_Squadra
+            WHERE p.ID_Lega = ? AND s.Completata = true
+            """;
+        
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, idLega);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    squadreIds.add(rs.getInt("ID_Squadra"));
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Errore caricamento squadre complete: " + e.getMessage());
+        }
+        
+        return squadreIds;
+    }
+
+    private void simulaStagioneCompleta(ActionEvent e) {
+        Lega legaSelezionata = (Lega) comboLeghePopola.getSelectedItem();
+        
+        if (legaSelezionata == null) {
+            JOptionPane.showMessageDialog(this,
+                "Seleziona una lega da simulare!",
+                "Attenzione",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Verifica stato lega
+        String statoLega = scontroDAO.getStatoLega(legaSelezionata.getIdLega());
+        if (!"IN_CORSO".equals(statoLega)) {
+            JOptionPane.showMessageDialog(this,
+                "La lega deve essere 'IN_CORSO' per essere simulata.\nStato attuale: " + statoLega,
+                "Lega non pronta",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int giornataCorrente = scontroDAO.getGiornataCorrente(legaSelezionata.getIdLega());
+        
+        String message = "Simulare l'intera stagione per '" + legaSelezionata.getNome() + "'?\n\n";
+        message += "Giornata corrente: " + giornataCorrente + "\n";
+        message += "Questo calcolerà automaticamente tutti i risultati rimanenti.\n\n";
+        message += "Procedere?";
+        
+        int conferma = JOptionPane.showConfirmDialog(this,
+            message,
+            "Simula Stagione Completa",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (conferma == JOptionPane.YES_OPTION) {
+            SwingWorker<Void, String> worker = new SwingWorker<Void, String>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    publish("Simulazione in corso...");
+                    scontroDAO.simulaTutteLeGiornate(legaSelezionata.getIdLega());
+                    return null;
+                }
+                
+                @Override
+                protected void process(List<String> chunks) {
+                    // Potresti mostrare una progress bar qui
+                    for (String msg : chunks) {
+                        System.out.println(msg);
+                    }
+                }
+                
+                @Override
+                protected void done() {
+                    JOptionPane.showMessageDialog(AdminLeaguePanel.this,
+                        "Stagione simulata completamente!\n" +
+                        "La lega '" + legaSelezionata.getNome() + "' è ora terminata.\n" +
+                        "Puoi consultare i risultati finali.",
+                        "Simulazione Completata",
+                        JOptionPane.INFORMATION_MESSAGE);
+                }
+            };
+            
+            worker.execute();
+        }
     }
     
     private JPanel createStatsPanel() {
