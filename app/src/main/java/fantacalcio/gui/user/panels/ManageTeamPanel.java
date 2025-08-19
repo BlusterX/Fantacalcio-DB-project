@@ -6,7 +6,6 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -28,7 +27,8 @@ import javax.swing.table.DefaultTableModel;
 
 import fantacalcio.dao.SquadraFantacalcioDAO;
 import fantacalcio.gui.user.UserMainFrame;
-import fantacalcio.gui.user.dialog.FormationManagementDialog;
+import fantacalcio.gui.user.dialog.ModuleSelectionDialog;
+import fantacalcio.gui.user.dialog.VisualFormationDialog;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
@@ -143,12 +143,33 @@ public class ManageTeamPanel extends JPanel {
                 JOptionPane.WARNING_MESSAGE);
             return;
         }
+        
+        if (!squadraSelezionata.isCompletata()) {
+            JOptionPane.showMessageDialog(this,
+                "La squadra deve essere completata prima di poter creare una formazione!",
+                "Squadra incompleta",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-        Window parent = SwingUtilities.getWindowAncestor(this);
-        FormationManagementDialog dialog =
-                new FormationManagementDialog(parent, squadraSelezionata, utenteCorrente);
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+        // Prima scegli il modulo
+        ModuleSelectionDialog moduloDialog = new ModuleSelectionDialog(
+            SwingUtilities.getWindowAncestor(this)
+        );
+        moduloDialog.setVisible(true);
+        
+        if (moduloDialog.isConfirmed() && moduloDialog.getModuloSelezionato() != null) {
+            String moduloScelto = moduloDialog.getModuloSelezionato();
+            
+            // Poi apri il dialog di formazione visuale
+            VisualFormationDialog formazioneDialog = new VisualFormationDialog(
+                SwingUtilities.getWindowAncestor(this),
+                squadraSelezionata,
+                parentFrame.getUtenteCorrente(),
+                moduloScelto
+            );
+            formazioneDialog.setVisible(true);
+        }
     }
     
     private void createButtons() {

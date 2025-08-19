@@ -33,8 +33,9 @@ import fantacalcio.dao.LegaDAO;
 import fantacalcio.dao.ScontroLegaDAO;
 import fantacalcio.dao.SquadraFantacalcioDAO;
 import fantacalcio.gui.user.UserMainFrame;
-import fantacalcio.gui.user.dialog.FormationManagementDialog;
+import fantacalcio.gui.user.dialog.ModuleSelectionDialog;
 import fantacalcio.gui.user.dialog.RisultatiLegaDialog;
+import fantacalcio.gui.user.dialog.VisualFormationDialog;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.Formazione;
 import fantacalcio.model.Lega;
@@ -370,13 +371,43 @@ public class LeagueDetailPanel extends JPanel {
     }
 
     private void apriGestioneFormazione() {
-        FormationManagementDialog dialog = new FormationManagementDialog(
-            SwingUtilities.getWindowAncestor(this),
-            squadraUtente,
-            utenteCorrente
+        if (!squadraUtente.isCompletata()) {
+            JOptionPane.showMessageDialog(this,
+                "La squadra deve essere completata prima di poter creare una formazione!",
+                "Squadra incompleta",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Prima mostra il dialog per scegliere il modulo
+        ModuleSelectionDialog moduloDialog = new ModuleSelectionDialog(
+            SwingUtilities.getWindowAncestor(this)
         );
-        dialog.setVisible(true);
+        moduloDialog.setVisible(true);
+        
+        if (moduloDialog.isConfirmed() && moduloDialog.getModuloSelezionato() != null) {
+            String moduloScelto = moduloDialog.getModuloSelezionato();
+            
+            // Poi apri il nuovo dialog visuale
+            VisualFormationDialog formazioneDialog = new VisualFormationDialog(
+                SwingUtilities.getWindowAncestor(this),
+                squadraUtente,
+                utenteCorrente,
+                moduloScelto
+            );
+            formazioneDialog.setVisible(true);
+            
+            // Refresh del panel dopo che il dialog è stato chiuso
+            SwingUtilities.invokeLater(() -> {
+                // Ricarica le informazioni sulla formazione
+                removeAll();
+                showTeamManagement();
+                revalidate();
+                repaint();
+            });
+        }
     }
+
 
     private void mostraRisultati() {
         RisultatiLegaDialog dialog = new RisultatiLegaDialog(
