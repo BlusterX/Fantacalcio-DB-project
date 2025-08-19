@@ -1,495 +1,8 @@
-DROP DATABASE IF EXISTS fantacalcio; CREATE DATABASE fantacalcio; USE fantacalcio; CREATE TABLE UTENTE ( ID_Utente INT PRIMARY KEY AUTO_INCREMENT, Nome VARCHAR(50) NOT NULL, Cognome VARCHAR(50) NOT NULL, Nickname VARCHAR(30) NOT NULL UNIQUE, Email VARCHAR(100) NOT NULL UNIQUE,
+package fantacalcio.gui.user.dialog;
 
-pasted
-
-BlusterX/Fantacalcio-DB-project
-main
-
-GITHUB
-
-Ti ho passato il progetto e il db creato. Comunque d'ora in poi, apparte che non sia necessario, non mandarmi tutto il codice ma solo i pezzi da cambiare(se sono pochi).
-Come posso continuare il progetto riguardo agli scontri tra gli utenti in una lega. Mi spiego, in questo momento una volta che sono entrati da 2 a 12 giocatori in una lega, l'admin della lega può decidere di startare la lega e dovrebbero così iniziare gli scontri(simulati), cioè ogni giocatore in base alla sua fascia, ha tot probabilità di segnare o fare assist, ecc... si sommano i punti di tutti i giocatori nella formazione di quella determinata giornata e si vede chi ha vinto tra le 2 squadre che si sono sfidate quella determinata giornata.
-Non vorrei usare la tabella Voto_giornata e Punteggio_Giocatore, ma se sono indispensabili secondo te va bene, dimmi se le usi o meno...
-Per il resto usa le tabelle che già ci sono.
-
-Modifica
-Analizzando il tuo progetto, vedo che hai già una buona struttura per gestire gli scontri tra squadre. Ti suggerisco di usare le tabelle esistenti senza Voto_Giornata e Punteggio_Giocatore, basandoti principalmente sulle fasce dei giocatori per il calcolo dei punteggi.
-
-Ecco come implementare il sistema di scontri:
-
-1. Modifica al DAO per avviare la lega
-
-MatchSimulationService.java
-Codice 
-2. Aggiorna ScontroLegaDAO per gestire l'avvio automatico
-Aggiungi questo metodo a ScontroLegaDAO.java:
-
-java
-/**
- * Avvia automaticamente una lega se ha abbastanza squadre complete
- */
-public boolean tentaAvvioAutomaticoLega(int idLega) {
-    if (!verificaAvvioLega(idLega)) {
-        return false;
-    }
-    
-    // Genera calendario
-    List<Integer> squadreIds = getSquadreCompleteLega(idLega);
-    if (!generaCalendario(idLega, squadreIds)) {
-        return false;
-    }
-    
-    // Avvia la lega
-    return avviaLega(idLega);
-}
-
-/**
- * Simula una giornata specifica
- */
-public void simulaGiornataLega(int idLega) {
-    String statoLega = getStatoLega(idLega);
-    if (!"IN_CORSO".equals(statoLega)) {
-        System.out.println("La lega non è in corso - stato: " + statoLega);
-        return;
-    }
-    
-    int giornataCorrente = getGiornataCorrente(idLega);
-    
-    MatchSimulationService simulator = new MatchSimulationService();
-    simulator.simulaGiornata(idLega, giornataCorrente);
-    
-    System.out.println("Giornata " + giornataCorrente + " simulata per lega " + idLega);
-}
-3. Aggiorna LeagueDetailPanel per mostrare pulsanti admin
-Nel metodo createLegaInfoPanel() di LeagueDetailPanel.java, aggiungi:
-
-java
-// Se l'utente è admin della lega, mostra controlli aggiuntivi
-if (isUserAdmin()) {
-    JButton btnAvviaLega = new JButton("🚀 Avvia Lega");
-    JButton btnSimulaGiornata = new JButton("⚽ Simula Giornata");
-    
-    styleButton(btnAvviaLega, new Color(76, 175, 80));
-    styleButton(btnSimulaGiornata, new Color(255, 152, 0));
-    
-    btnAvviaLega.addActionListener(e -> avviaLega());
-    btnSimulaGiornata.addActionListener(e -> simulaGiornata());
-    
-    // Abilita/disabilita in base allo stato
-    btnAvviaLega.setEnabled("CREATA".equals(statoLega));
-    btnSimulaGiornata.setEnabled("IN_CORSO".equals(statoLega));
-    
-    rightInfo.add(btnAvviaLega);
-    rightInfo.add(Box.createHorizontalStrut(5));
-    rightInfo.add(btnSimulaGiornata);
-}
-
-private boolean isUserAdmin() {
-    // Verifica se l'utente corrente è admin della lega
-    return legaDAO.trovaLeghePerAdmin(utenteCorrente.getIdUtente())
-                  .stream()
-                  .anyMatch(l -> l.getIdLega() == lega.getIdLega());
-}
-
-private void avviaLega() {
-    int conferma = JOptionPane.showConfirmDialog(this,
-        "Avviare la lega '" + lega.getNome() + "'?\n\n" +
-        "Questo genererà automaticamente il calendario degli scontri.",
-        "Conferma Avvio Lega",
-        JOptionPane.YES_NO_OPTION);
-    
-    if (conferma == JOptionPane.YES_OPTION) {
-        if (scontroDAO.tentaAvvioAutomaticoLega(lega.getIdLega())) {
-            JOptionPane.showMessageDialog(this,
-                "Lega avviata con successo!\nGli scontri inizieranno a breve.",
-                "Lega Avviata",
-                JOptionPane.INFORMATION_MESSAGE);
-            // Refresh della vista
-            SwingUtilities.invokeLater(() -> {
-                // Ricarica il panel
-            });
-        } else {
-            JOptionPane.showMessageDialog(this,
-                "Impossibile avviare la lega.\nVerifica che ci siano abbastanza squadre complete.",
-                "Errore",
-                JOptionPane.ERROR_MESSAGE);
-        }
-    }
-}
-
-private void simulaGiornata() {
-    int conferma = JOptionPane.showConfirmDialog(this,
-        "Simulare la giornata corrente?\n\n" +
-        "Questo calcolerà i risultati di tutte le partite.",
-        "Simula Giornata",
-        JOptionPane.YES_NO_OPTION);
-    
-    if (conferma == JOptionPane.YES_OPTION) {
-        scontroDAO.simulaGiornataLega(lega.getIdLega());
-        JOptionPane.showMessageDialog(this,
-            "Giornata simulata con successo!",
-            "Simulazione Completata",
-            JOptionPane.INFORMATION_MESSAGE);
-    }
-}
-Come funziona:
-Avvio Lega: L'admin può avviare la lega quando ha almeno 2-12 squadre complete
-Generazione Calendario: Crea automaticamente gli scontri round-robin
-Simulazione: Ogni giornata, calcola i punteggi basandosi su:
-Formazione schierata (solo titolari contano)
-Fascia di ogni giocatore (probabilità diverse di eventi)
-Eventi random: gol, assist, ammonizioni, espulsioni, imbattibilità
-Calcolo Punteggio:
-Voto base random (4.5-8.5)
-Bonus gol/assist basati su fascia e ruolo
-Malus per cartellini
-Non ho usato Voto_Giornata e Punteggio_Giocatore come richiesto - tutto si basa sulle fasce esistenti e calcoli in tempo reale.
-
-Vuoi che implementi anche una classifica automatica che si aggiorna dopo ogni giornata?
-
-
-
-
-Riguardo al punto 2 non voglio che la lega si avvia automaticamente, deve essere l'admin che decide di avviarla, perchè dopo nessuno potrà entrare ne uscire dalla lega. E simulare una giornata specifica non mi sembra avere tanto senso anche perchè le partite dovranno essere simulate di fila(dalla 1 alla 38esima).
-Riguardo al punto 3, vorrei che l'admin può avviare la lega solo tramite il pannel admin(aggiungi lì un bottone). Il punto 1 ho aggiunto il codice come hai detto
-
-Modifica
-Hai ragione, modifico l'approccio. Ecco le correzioni:
-
-1. Rimuovi il metodo di avvio automatico da ScontroLegaDAO
-Sostituisci il metodo tentaAvvioAutomaticoLega con:
-
-java
-/**
- * Avvia una lega manualmente (solo admin)
- */
-public boolean avviaLegaManualmente(int idLega) {
-    // Verifica prerequisiti
-    if (!verificaAvvioLega(idLega)) {
-        return false;
-    }
-    
-    // Genera calendario completo (tutte le 38 giornate se necessario)
-    List<Integer> squadreIds = getSquadreCompleteLega(idLega);
-    if (!generaCalendarioCompleto(idLega, squadreIds)) {
-        return false;
-    }
-    
-    // Avvia la lega
-    return avviaLega(idLega);
-}
-
-/**
- * Genera calendario completo per tutte le giornate
- */
-private boolean generaCalendarioCompleto(int idLega, List<Integer> squadreIds) {
-    if (squadreIds.size() % 2 != 0 || squadreIds.size() < 2) {
-        return false;
-    }
-    
-    String sql = "INSERT INTO SCONTRO_LEGA (ID_Lega, ID_Squadra_1, ID_Squadra_2, Giornata) VALUES (?, ?, ?, ?)";
-    
-    try (Connection conn = dbConnection.getConnection()) {
-        conn.setAutoCommit(false);
-        
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            int numSquadre = squadreIds.size();
-            int numGiornate = (numSquadre - 1) * 2; // Andata e ritorno
-            
-            // Andata
-            for (int giornata = 1; giornata <= numSquadre - 1; giornata++) {
-                generaPartiteGiornata(stmt, idLega, squadreIds, giornata);
-            }
-            
-            // Ritorno (squadre invertite)
-            for (int giornata = numSquadre; giornata <= numGiornate; giornata++) {
-                int giornataAndata = giornata - (numSquadre - 1);
-                generaPartiteGiornataInvertite(stmt, idLega, squadreIds, giornata, giornataAndata);
-            }
-            
-            stmt.executeBatch();
-            conn.commit();
-            
-            System.out.println("Calendario completo generato: " + numGiornate + " giornate");
-            return true;
-            
-        } catch (SQLException e) {
-            conn.rollback();
-            throw e;
-        }
-        
-    } catch (SQLException e) {
-        System.err.println("Errore generazione calendario: " + e.getMessage());
-        return false;
-    }
-}
-
-/**
- * Simula tutte le giornate in sequenza
- */
-public void simulaTutteLeGiornate(int idLega) {
-    String statoLega = getStatoLega(idLega);
-    if (!"IN_CORSO".equals(statoLega)) {
-        System.out.println("La lega non è in corso");
-        return;
-    }
-    
-    MatchSimulationService simulator = new MatchSimulationService();
-    int giornataCorrente = getGiornataCorrente(idLega);
-    int maxGiornate = getMaxGiornate(idLega);
-    
-    // Simula dalla giornata corrente fino alla fine
-    for (int giornata = giornataCorrente; giornata <= maxGiornate; giornata++) {
-        simulator.simulaGiornata(idLega, giornata);
-        aggiornaGiornataCorrente(idLega, giornata + 1);
-        
-        System.out.println("Simulata giornata " + giornata + "/" + maxGiornate);
-    }
-    
-    // Termina la lega
-    terminaLega(idLega);
-}
-
-private int getMaxGiornate(int idLega) {
-    String sql = "SELECT MAX(Giornata) FROM SCONTRO_LEGA WHERE ID_Lega = ?";
-    try (Connection conn = dbConnection.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-        stmt.setInt(1, idLega);
-        try (ResultSet rs = stmt.executeQuery()) {
-            return rs.next() ? rs.getInt(1) : 38;
-        }
-    } catch (SQLException e) {
-        return 38; // Default
-    }
-}
-
-private void aggiornaGiornataCorrente(int idLega, int nuovaGiornata) {
-    String sql = "UPDATE LEGA SET Giornata_Corrente = ? WHERE ID_Lega = ?";
-    try (Connection conn = dbConnection.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-        stmt.setInt(1, nuovaGiornata);
-        stmt.setInt(2, idLega);
-        stmt.executeUpdate();
-    } catch (SQLException e) {
-        System.err.println("Errore aggiornamento giornata: " + e.getMessage());
-    }
-}
-
-private void terminaLega(int idLega) {
-    String sql = "UPDATE LEGA SET Stato = 'TERMINATA' WHERE ID_Lega = ?";
-    try (Connection conn = dbConnection.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-        stmt.setInt(1, idLega);
-        stmt.executeUpdate();
-        System.out.println("Lega " + idLega + " terminata");
-    } catch (SQLException e) {
-        System.err.println("Errore terminazione lega: " + e.getMessage());
-    }
-}
-2. Aggiungi pulsanti al pannello admin
-In AdminLeaguePanel.java, modifica il metodo createRightPanel():
-
-java
-private JPanel createRightPanel() {
-    JPanel rightPanel = new JPanel();
-    rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-    rightPanel.setBorder(BorderFactory.createTitledBorder("Statistiche e Azioni"));
-    rightPanel.setPreferredSize(new Dimension(250, 0));
-    
-    // Statistiche esistenti
-    JPanel statsPanel = createStatsPanel();
-    
-    // Separator
-    JSeparator separator = new JSeparator();
-    
-    // NUOVO: Pannello gestione lega
-    JPanel gestioneLegaPanel = createGestioneLegaPanel();
-    
-    // Pannello popolamento esistente
-    JPanel populatePanel = createPopulatePanel();
-    
-    rightPanel.add(statsPanel);
-    rightPanel.add(Box.createVerticalStrut(10));
-    rightPanel.add(separator);
-    rightPanel.add(Box.createVerticalStrut(10));
-    rightPanel.add(gestioneLegaPanel);
-    rightPanel.add(Box.createVerticalStrut(10));
-    rightPanel.add(populatePanel);
-    rightPanel.add(Box.createVerticalGlue());
-    
-    return rightPanel;
-}
-
-private JPanel createGestioneLegaPanel() {
-    JPanel gestionePanel = new JPanel();
-    gestionePanel.setLayout(new BoxLayout(gestionePanel, BoxLayout.Y_AXIS));
-    gestionePanel.setBorder(BorderFactory.createTitledBorder("Gestione Lega"));
-    
-    JLabel lblInfo = new JLabel("Seleziona lega:");
-    lblInfo.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-    
-    JButton btnAvviaLega = new JButton("🚀 Avvia Lega");
-    JButton btnSimulaCompleta = new JButton("⚽ Simula Stagione");
-    
-    styleButton(btnAvviaLega, new Color(76, 175, 80));
-    styleButton(btnSimulaCompleta, new Color(255, 152, 0));
-    
-    btnAvviaLega.addActionListener(this::avviaLega);
-    btnSimulaCompleta.addActionListener(this::simulaStagioneCompleta);
-    
-    gestionePanel.add(lblInfo);
-    gestionePanel.add(Box.createVerticalStrut(5));
-    gestionePanel.add(btnAvviaLega);
-    gestionePanel.add(Box.createVerticalStrut(5));
-    gestionePanel.add(btnSimulaCompleta);
-    
-    JLabel lblInfoGestione = new JLabel("<html><small>Avvia: genera calendario e inizia<br>Simula: calcola tutti i risultati</small></html>");
-    lblInfoGestione.setForeground(new Color(100, 100, 100));
-    gestionePanel.add(Box.createVerticalStrut(5));
-    gestionePanel.add(lblInfoGestione);
-    
-    return gestionePanel;
-}
-
-private void avviaLega(ActionEvent e) {
-    Lega legaSelezionata = (Lega) comboLeghePopola.getSelectedItem();
-    
-    if (legaSelezionata == null) {
-        JOptionPane.showMessageDialog(this,
-            "Seleziona una lega da avviare!",
-            "Attenzione",
-            JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    // Verifica stato lega
-    String statoLega = scontroDAO.getStatoLega(legaSelezionata.getIdLega());
-    if (!"CREATA".equals(statoLega)) {
-        JOptionPane.showMessageDialog(this,
-            "La lega è già stata avviata o è terminata.\nStato attuale: " + statoLega,
-            "Lega non disponibile",
-            JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    // Conta squadre complete
-    List<Integer> squadreComplete = getSquadreCompleteLega(legaSelezionata.getIdLega());
-    
-    String message = "Avviare la lega '" + legaSelezionata.getNome() + "'?\n\n";
-    message += "Squadre complete: " + squadreComplete.size() + "\n";
-    message += "Questo genererà il calendario completo degli scontri.\n\n";
-    message += "⚠️ ATTENZIONE: Dopo l'avvio nessuno potrà più entrare o uscire dalla lega!\n\n";
-    message += "Procedere?";
-    
-    int conferma = JOptionPane.showConfirmDialog(this,
-        message,
-        "Conferma Avvio Lega",
-        JOptionPane.YES_NO_OPTION,
-        JOptionPane.WARNING_MESSAGE);
-    
-    if (conferma == JOptionPane.YES_OPTION) {
-        if (scontroDAO.avviaLegaManualmente(legaSelezionata.getIdLega())) {
-            JOptionPane.showMessageDialog(this,
-                "Lega '" + legaSelezionata.getNome() + "' avviata con successo!\n" +
-                "Calendario generato per tutte le giornate.\n" +
-                "Ora puoi simulare la stagione completa.",
-                "Lega Avviata",
-                JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            JOptionPane.showMessageDialog(this,
-                "Errore nell'avvio della lega.\n" +
-                "Verifica che ci siano abbastanza squadre complete (minimo 2, numero pari).",
-                "Errore",
-                JOptionPane.ERROR_MESSAGE);
-        }
-    }
-}
-
-private void simulaStagioneCompleta(ActionEvent e) {
-    Lega legaSelezionata = (Lega) comboLeghePopola.getSelectedItem();
-    
-    if (legaSelezionata == null) {
-        JOptionPane.showMessageDialog(this,
-            "Seleziona una lega da simulare!",
-            "Attenzione",
-            JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    // Verifica stato lega
-    String statoLega = scontroDAO.getStatoLega(legaSelezionata.getIdLega());
-    if (!"IN_CORSO".equals(statoLega)) {
-        JOptionPane.showMessageDialog(this,
-            "La lega deve essere 'IN_CORSO' per essere simulata.\nStato attuale: " + statoLega,
-            "Lega non pronta",
-            JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    int giornataCorrente = scontroDAO.getGiornataCorrente(legaSelezionata.getIdLega());
-    
-    String message = "Simulare l'intera stagione per '" + legaSelezionata.getNome() + "'?\n\n";
-    message += "Giornata corrente: " + giornataCorrente + "\n";
-    message += "Questo calcolerà automaticamente tutti i risultati rimanenti.\n\n";
-    message += "Procedere?";
-    
-    int conferma = JOptionPane.showConfirmDialog(this,
-        message,
-        "Simula Stagione Completa",
-        JOptionPane.YES_NO_OPTION,
-        JOptionPane.QUESTION_MESSAGE);
-    
-    if (conferma == JOptionPane.YES_OPTION) {
-        SwingWorker<Void, String> worker = new SwingWorker<Void, String>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                publish("Simulazione in corso...");
-                scontroDAO.simulaTutteLeGiornate(legaSelezionata.getIdLega());
-                return null;
-            }
-            
-            @Override
-            protected void process(List<String> chunks) {
-                // Potresti mostrare una progress bar qui
-                for (String msg : chunks) {
-                    System.out.println(msg);
-                }
-            }
-            
-            @Override
-            protected void done() {
-                JOptionPane.showMessageDialog(AdminLeaguePanel.this,
-                    "Stagione simulata completamente!\n" +
-                    "La lega '" + legaSelezionata.getNome() + "' è ora terminata.\n" +
-                    "Puoi consultare i risultati finali.",
-                    "Simulazione Completata",
-                    JOptionPane.INFORMATION_MESSAGE);
-            }
-        };
-        
-        worker.execute();
-    }
-}
-3. Rimuovi i pulsanti da LeagueDetailPanel
-Nel LeagueDetailPanel.java, rimuovi i pulsanti di gestione lega dall'interfaccia utente normale (mantieni solo la visualizzazione dei risultati se la lega è in corso).
-
-Ora il flusso è:
-
-Admin panel: Avvia lega → Genera calendario completo
-Admin panel: Simula stagione → Calcola tutti i risultati in sequenza
-Interfaccia utente: Visualizza solo risultati e classifiche
-Questo ti va bene come approccio?
-
-
-
-
-Nel admin panel, scontroDAO mi da errore, idem getSquadreCompleteLega
-
-Modifica
-Hai ragione, devi importare e dichiarare le dipendenze. Aggiungi questi elementi a AdminLeaguePanel.java:
-
-1. Aggiungi gli import java.awt.BorderLayout;
+import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -502,14 +15,21 @@ import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -523,6 +43,7 @@ import javax.swing.table.DefaultTableModel;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
+import fantacalcio.util.DatabaseConnection;
 
 /**
  * Dialog per la creazione visuale della formazione
@@ -887,6 +408,114 @@ public class VisualFormationDialog extends JDialog {
         worker.execute();
     }
     
+    private boolean salvaFormazioneDatabase() {
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInstance().getConnection();
+            conn.setAutoCommit(false);
+            
+            // 1. Crea o aggiorna la formazione
+            String sqlFormazione = """
+                INSERT INTO FORMAZIONE (Modulo, ID_Squadra) VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE Modulo = VALUES(Modulo)
+                """;
+            
+            int idFormazione;
+            try (PreparedStatement stmt = conn.prepareStatement(sqlFormazione, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setString(1, modulo);
+                stmt.setInt(2, squadra.getIdSquadraFantacalcio());
+                stmt.executeUpdate();
+                
+                try (ResultSet rs = stmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        idFormazione = rs.getInt(1);
+                    } else {
+                        // Se non è stata inserita, cerca l'esistente
+                        String sqlCerca = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra = ?";
+                        try (PreparedStatement stmtCerca = conn.prepareStatement(sqlCerca)) {
+                            stmtCerca.setInt(1, squadra.getIdSquadraFantacalcio());
+                            try (ResultSet rsCerca = stmtCerca.executeQuery()) {
+                                if (rsCerca.next()) {
+                                    idFormazione = rsCerca.getInt("ID_Formazione");
+                                } else {
+                                    throw new SQLException("Impossibile ottenere ID formazione");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 2. Pulisci le associazioni esistenti
+            String sqlPulisci = "DELETE FROM FORMANO WHERE ID_Formazione = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlPulisci)) {
+                stmt.setInt(1, idFormazione);
+                stmt.executeUpdate();
+            }
+            
+            // 3. Inserisci i titolari
+            String sqlTitolari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina) VALUES (?, ?, 'NO')";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlTitolari)) {
+                for (Map.Entry<String, Calciatore> entry : posizioni.entrySet()) {
+                    Calciatore calciatore = entry.getValue();
+                    stmt.setInt(1, calciatore.getIdCalciatore());
+                    stmt.setInt(2, idFormazione);
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+            }
+            
+            // 4. Aggiungi panchinari (restanti giocatori)
+            String sqlPanchinari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina, Ordine_Panchina) VALUES (?, ?, 'SI', ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlPanchinari)) {
+                int ordinePanchina = 1;
+                for (Calciatore calciatore : squadra.getCalciatori()) {
+                    if (!posizioni.containsValue(calciatore)) {
+                        stmt.setInt(1, calciatore.getIdCalciatore());
+                        stmt.setInt(2, idFormazione);
+                        stmt.setInt(3, ordinePanchina++);
+                        stmt.addBatch();
+                        
+                        // Limita la panchina a 7 giocatori
+                        if (ordinePanchina > 7) break;
+                    }
+                }
+                stmt.executeBatch();
+            }
+            
+            // 5. Associa la formazione alla giornata
+            String sqlSchieramento = """
+                INSERT INTO SCHIERAMENTO (ID_Squadra, ID_Formazione, Numero_Giornata) 
+                VALUES (?, ?, ?) 
+                ON DUPLICATE KEY UPDATE ID_Formazione = VALUES(ID_Formazione)
+                """;
+            try (PreparedStatement stmt = conn.prepareStatement(sqlSchieramento)) {
+                stmt.setInt(1, squadra.getIdSquadraFantacalcio());
+                stmt.setInt(2, idFormazione);
+                stmt.setInt(3, giornataCorrente);
+                stmt.executeUpdate();
+            }
+            
+            conn.commit();
+            return true;
+            
+        } catch (SQLException ex) {
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException rollbackEx) {
+                System.err.println("Errore rollback: " + rollbackEx.getMessage());
+            }
+            System.err.println("Errore salvataggio formazione: " + ex.getMessage());
+            return false;
+        } finally {
+            try {
+                if (conn != null) conn.setAutoCommit(true);
+            } catch (SQLException ex) {
+                System.err.println("Errore ripristino autocommit: " + ex.getMessage());
+            }
+        }
+    }
+    
     private void resetFormazione(ActionEvent e) {
         int conferma = JOptionPane.showConfirmDialog(this,
             "Sei sicuro di voler resettare la formazione?",
@@ -897,4 +526,108 @@ public class VisualFormationDialog extends JDialog {
             posizioni.clear();
             
             // Reset bottoni
-            for (JButton btn : bott
+            for (JButton btn : bottoniPosizioni.values()) {
+                btn.setText("+");
+                btn.setToolTipText("Aggiungi giocatore");
+            }
+            
+            updateSalvaButton();
+            campoPanel.repaint();
+        }
+    }
+    
+    private int[] parseModulo(String modulo) {
+        String[] parti = modulo.split("-");
+        int[] numeri = new int[3];
+        for (int i = 0; i < parti.length; i++) {
+            numeri[i] = Integer.parseInt(parti[i]);
+        }
+        return numeri;
+    }
+    
+    private void styleButton(JButton button, Color color) {
+        button.setBackground(color);
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    }
+    
+    /**
+     * Dialog interno per selezionare un giocatore per una posizione
+     */
+    private class PlayerSelectionDialog extends JDialog {
+        private Calciatore giocatoreSelezionato = null;
+        
+        public PlayerSelectionDialog(Window parent, List<Calciatore> giocatori, Calciatore.Ruolo ruolo) {
+            super(parent, "Seleziona " + ruolo.name(), ModalityType.APPLICATION_MODAL);
+            setSize(400, 300);
+            setLocationRelativeTo(parent);
+            
+            JPanel panel = new JPanel(new BorderLayout());
+            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            
+            DefaultListModel<Calciatore> model = new DefaultListModel<>();
+            for (Calciatore c : giocatori) {
+                model.addElement(c);
+            }
+            
+            JList<Calciatore> list = new JList<>(model);
+            list.setCellRenderer(new CalciatoreListCellRenderer());
+            list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            
+            JScrollPane scrollPane = new JScrollPane(list);
+            
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton btnSeleziona = new JButton("Seleziona");
+            JButton btnAnnulla = new JButton("Annulla");
+            
+            buttonPanel.add(btnSeleziona);
+            buttonPanel.add(btnAnnulla);
+            
+            btnSeleziona.addActionListener(e -> {
+                giocatoreSelezionato = list.getSelectedValue();
+                dispose();
+            });
+            
+            btnAnnulla.addActionListener(e -> dispose());
+            
+            panel.add(scrollPane, BorderLayout.CENTER);
+            panel.add(buttonPanel, BorderLayout.SOUTH);
+            
+            setContentPane(panel);
+        }
+        
+        public Calciatore getGiocatoreSelezionato() {
+            return giocatoreSelezionato;
+        }
+    }
+    
+    /**
+     * Renderer personalizzato per visualizzare i giocatori nelle liste
+     */
+    private static class CalciatoreListCellRenderer extends JLabel implements javax.swing.ListCellRenderer<Calciatore> {
+        public CalciatoreListCellRenderer() {
+            setOpaque(true);
+            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        }
+        
+        @Override
+        public Component getListCellRendererComponent(JList<? extends Calciatore> list,
+                Calciatore calciatore, int index, boolean isSelected, boolean cellHasFocus) {
+            
+            setText(calciatore.getNomeCompleto() + " (" + calciatore.getCosto() + "€)");
+            
+            if (isSelected) {
+                setBackground(list.getSelectionBackground());
+                setForeground(list.getSelectionForeground());
+            } else {
+                setBackground(list.getBackground());
+                setForeground(list.getForeground());
+            }
+            
+            return this;
+        }
+    }
+}
