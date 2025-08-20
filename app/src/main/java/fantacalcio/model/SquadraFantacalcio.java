@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class SquadraFantacalcio {
-    
+
     private int idSquadraFantacalcio;
     private String nomeSquadra;
     private int budgetTotale;
@@ -14,18 +14,20 @@ public class SquadraFantacalcio {
     private LocalDateTime dataCreazione;
     private LocalDateTime dataUltimaModifica;
     private boolean completata;
+    private Integer idClassifica;
+    private Integer idUtente;
+    private Integer idLega;
     private List<Calciatore> calciatori;
-    
-    // Costanti per regole fantacalcio
-    public static final int BUDGET_INIZIALE = 1000; // crediti
+
+    // Costanti per le regole
+    public static final int BUDGET_INIZIALE = 1000;
     public static final int NUM_PORTIERI_RICHIESTI = 3;
     public static final int NUM_DIFENSORI_RICHIESTI = 8;
     public static final int NUM_CENTROCAMPISTI_RICHIESTI = 8;
     public static final int NUM_ATTACCANTI_RICHIESTI = 6;
-    public static final int TOTALE_GIOCATORI = NUM_PORTIERI_RICHIESTI + NUM_DIFENSORI_RICHIESTI + 
-                                              NUM_CENTROCAMPISTI_RICHIESTI + NUM_ATTACCANTI_RICHIESTI;
-    
-    // Costruttori
+    public static final int TOTALE_GIOCATORI = NUM_PORTIERI_RICHIESTI + NUM_DIFENSORI_RICHIESTI +
+                                               NUM_CENTROCAMPISTI_RICHIESTI + NUM_ATTACCANTI_RICHIESTI;
+
     public SquadraFantacalcio() {
         this.calciatori = new ArrayList<>();
         this.budgetTotale = BUDGET_INIZIALE;
@@ -33,16 +35,16 @@ public class SquadraFantacalcio {
         this.dataCreazione = LocalDateTime.now();
         this.dataUltimaModifica = LocalDateTime.now();
         this.completata = false;
+        this.idClassifica = null;
+        this.idUtente = null;
+        this.idLega = null;
     }
-    
-    public SquadraFantacalcio(String nomeSquadra) {
-        this();
-        this.nomeSquadra = nomeSquadra;
-    }
-    
-    // Costruttore completo (per lettura da database)
-    public SquadraFantacalcio(int idSquadraFantacalcio, String nomeSquadra, int budgetTotale, int budgetRimanente, LocalDateTime dataCreazione,
-                             LocalDateTime dataUltimaModifica, boolean completata) {
+
+    // Costruttore completo (lettura da DB)
+    public SquadraFantacalcio(int idSquadraFantacalcio, String nomeSquadra, int budgetTotale,
+                              int budgetRimanente, LocalDateTime dataCreazione,
+                              LocalDateTime dataUltimaModifica, boolean completata,
+                              Integer idClassifica, Integer idUtente, Integer idLega) {
         this.idSquadraFantacalcio = idSquadraFantacalcio;
         this.nomeSquadra = nomeSquadra;
         this.budgetTotale = budgetTotale;
@@ -50,177 +52,111 @@ public class SquadraFantacalcio {
         this.dataCreazione = dataCreazione;
         this.dataUltimaModifica = dataUltimaModifica;
         this.completata = completata;
+        this.idClassifica = idClassifica;
+        this.idUtente = idUtente;
+        this.idLega = idLega;
         this.calciatori = new ArrayList<>();
     }
-    
-    // Getters e Setters
-    public int getIdSquadraFantacalcio() {
-        return idSquadraFantacalcio;
-    }
-    
-    public void setIdSquadraFantacalcio(int idSquadraFantacalcio) {
-        this.idSquadraFantacalcio = idSquadraFantacalcio;
-    }
-    
-    public String getNomeSquadra() {
-        return nomeSquadra;
-    }
-    
 
-    public void setNomeSquadra(String nomeSquadra) {
-        this.nomeSquadra = nomeSquadra;
-    }
-    
-    public int getBudgetTotale() {
-        return budgetTotale;
-    }
-    
-    public void setBudgetTotale(int budgetTotale) {
-        this.budgetTotale = budgetTotale;
-    }
-    
-    public int getBudgetRimanente() {
-        return budgetRimanente;
-    }
-    
-    public void setBudgetRimanente(int budgetRimanente) {
-        this.budgetRimanente = budgetRimanente;
-    }
-    
-    public LocalDateTime getDataCreazione() {
-        return dataCreazione;
-    }
-    
-    public void setDataCreazione(LocalDateTime dataCreazione) {
-        this.dataCreazione = dataCreazione;
-    }
-    
-    public LocalDateTime getDataUltimaModifica() {
-        return dataUltimaModifica;
-    }
-    
-    public void setDataUltimaModifica(LocalDateTime dataUltimaModifica) {
-        this.dataUltimaModifica = dataUltimaModifica;
-    }
-    
-    public boolean isCompletata() {
-        return completata;
-    }
-    
-    public void setCompletata(boolean completata) {
-        this.completata = completata;
-    }
-    
+    // Getters e Setters
+    public int getIdSquadraFantacalcio() { return idSquadraFantacalcio; }
+    public void setIdSquadraFantacalcio(int idSquadraFantacalcio) { this.idSquadraFantacalcio = idSquadraFantacalcio; }
+
+    public String getNomeSquadra() { return nomeSquadra; }
+    public void setNomeSquadra(String nomeSquadra) { this.nomeSquadra = nomeSquadra; }
+
+    public int getBudgetTotale() { return budgetTotale; }
+    public void setBudgetTotale(int budgetTotale) { this.budgetTotale = budgetTotale; }
+
+    public int getBudgetRimanente() { return budgetRimanente; }
+    public void setBudgetRimanente(int budgetRimanente) { this.budgetRimanente = budgetRimanente; }
+
+    public LocalDateTime getDataCreazione() { return dataCreazione; }
+    public void setDataCreazione(LocalDateTime dataCreazione) { this.dataCreazione = dataCreazione; }
+
+    public LocalDateTime getDataUltimaModifica() { return dataUltimaModifica; }
+    public void setDataUltimaModifica(LocalDateTime dataUltimaModifica) { this.dataUltimaModifica = dataUltimaModifica; }
+
+    public boolean isCompletata() { return completata; }
+    public void setCompletata(boolean completata) { this.completata = completata; }
+
+    public Integer getIdClassifica() { return idClassifica; }
+    public void setIdClassifica(Integer idClassifica) { this.idClassifica = idClassifica; }
+
+    public Integer getIdUtente() { return idUtente; }
+    public void setIdUtente(Integer idUtente) { this.idUtente = idUtente; }
+
+    public Integer getIdLega() { return idLega; }
+    public void setIdLega(Integer idLega) { this.idLega = idLega; }
+
     public List<Calciatore> getCalciatori() {
-        return new ArrayList<>(calciatori); // Copia defensiva
+        return new ArrayList<>(calciatori);
     }
-    
     public void setCalciatori(List<Calciatore> calciatori) {
         this.calciatori = new ArrayList<>(calciatori);
     }
-    
-    // Metodi di business logic
-    
-    /**
-     * Aggiunge un calciatore alla squadra se possibile
-     */
+
+    // Business logic
     public boolean aggiungiCalciatore(Calciatore calciatore) {
-        // Verifica budget
-        if (calciatore.getCosto() > budgetRimanente) {
-            return false; // Budget insufficiente
-        }
-        
-        // Verifica limiti per ruolo
-        if (!rispettaLimitiRuolo(calciatore.getRuolo())) {
-            return false; // Troppi giocatori di questo ruolo
-        }
-        
-        // Verifica che il calciatore non sia già presente
-        if (calciatori.stream().anyMatch(c -> c.getIdCalciatore() == calciatore.getIdCalciatore())) {
-            return false; // Calciatore già presente
-        }
-        
+        if (calciatore.getCosto() > budgetRimanente) return false;
+        if (!rispettaLimitiRuolo(calciatore.getRuolo())) return false;
+        if (calciatori.stream().anyMatch(c -> c.getIdCalciatore() == calciatore.getIdCalciatore())) return false;
+
         calciatori.add(calciatore);
         budgetRimanente -= calciatore.getCosto();
         dataUltimaModifica = LocalDateTime.now();
-        
-        // Verifica se la squadra è completa
         verificaCompletamento();
-        
         return true;
     }
-    
-    /**
-     * Rimuove un calciatore dalla squadra
-     */
+
     public boolean rimuoviCalciatore(int idCalciatore) {
         for (int i = 0; i < calciatori.size(); i++) {
             if (calciatori.get(i).getIdCalciatore() == idCalciatore) {
-                Calciatore rimosso = calciatori.remove(i);
-                budgetRimanente += rimosso.getCosto();
+                Calciatore removed = calciatori.remove(i);
+                budgetRimanente += removed.getCosto();
                 dataUltimaModifica = LocalDateTime.now();
-                
-                // La squadra non può più essere completa se rimuoviamo un giocatore
                 completata = false;
-                
                 return true;
             }
         }
         return false;
     }
-    
-    /**
-     * Verifica se si può aggiungere un altro giocatore del ruolo specificato
-     */
+
     private boolean rispettaLimitiRuolo(Calciatore.Ruolo ruolo) {
         long count = calciatori.stream()
-                               .filter(c -> c.getRuolo() == ruolo)
-                               .count();
-        
+                .filter(c -> c.getRuolo() == ruolo)
+                .count();
+
         return switch (ruolo) {
-            case PORTIERE -> count < NUM_PORTIERI_RICHIESTI;
-            case DIFENSORE -> count < NUM_DIFENSORI_RICHIESTI;
+            case PORTIERE     -> count < NUM_PORTIERI_RICHIESTI;
+            case DIFENSORE    -> count < NUM_DIFENSORI_RICHIESTI;
             case CENTROCAMPISTA -> count < NUM_CENTROCAMPISTI_RICHIESTI;
-            case ATTACCANTE -> count < NUM_ATTACCANTI_RICHIESTI;
+            case ATTACCANTE   -> count < NUM_ATTACCANTI_RICHIESTI;
         };
     }
-    
-    /**
-     * Conta i giocatori per ogni ruolo
-     */
+
     public int contaGiocatoriPerRuolo(Calciatore.Ruolo ruolo) {
         return (int) calciatori.stream()
-                              .filter(c -> c.getRuolo() == ruolo)
-                              .count();
+                .filter(c -> c.getRuolo() == ruolo)
+                .count();
     }
-    
-    /**
-     * Verifica se la squadra è completa (ha tutti i giocatori richiesti)
-     */
+
     private void verificaCompletamento() {
-        completata = contaGiocatoriPerRuolo(Calciatore.Ruolo.PORTIERE) == NUM_PORTIERI_RICHIESTI &&
-                    contaGiocatoriPerRuolo(Calciatore.Ruolo.DIFENSORE) == NUM_DIFENSORI_RICHIESTI &&
-                    contaGiocatoriPerRuolo(Calciatore.Ruolo.CENTROCAMPISTA) == NUM_CENTROCAMPISTI_RICHIESTI &&
-                    contaGiocatoriPerRuolo(Calciatore.Ruolo.ATTACCANTE) == NUM_ATTACCANTI_RICHIESTI;
+        completata =
+            contaGiocatoriPerRuolo(Calciatore.Ruolo.PORTIERE)     == NUM_PORTIERI_RICHIESTI &&
+            contaGiocatoriPerRuolo(Calciatore.Ruolo.DIFENSORE)    == NUM_DIFENSORI_RICHIESTI &&
+            contaGiocatoriPerRuolo(Calciatore.Ruolo.CENTROCAMPISTA) == NUM_CENTROCAMPISTI_RICHIESTI &&
+            contaGiocatoriPerRuolo(Calciatore.Ruolo.ATTACCANTE)   == NUM_ATTACCANTI_RICHIESTI;
     }
-    
-    /**
-     * Restituisce il numero totale di giocatori nella squadra
-     */
+
     public int getNumeroTotaleGiocatori() {
         return calciatori.size();
     }
-    
-    /**
-     * Restituisce il budget speso
-     */
+
     public int getBudgetSpeso() {
         return budgetTotale - budgetRimanente;
     }
-    
-    /**
-     * Restituisce una stringa con le statistiche della squadra
-     */
+
     public String getStatistiche() {
         return String.format(
             "Giocatori: %d/%d | Budget: %d/%d | P:%d D:%d C:%d A:%d",
@@ -232,16 +168,13 @@ public class SquadraFantacalcio {
             contaGiocatoriPerRuolo(Calciatore.Ruolo.ATTACCANTE)
         );
     }
-    
-    /**
-     * Verifica se è possibile acquistare un calciatore
-     */
+
     public boolean puoAcquistare(Calciatore calciatore) {
-        return calciatore.getCosto() <= budgetRimanente && 
+        return calciatore.getCosto() <= budgetRimanente &&
                rispettaLimitiRuolo(calciatore.getRuolo()) &&
-               !calciatori.stream().anyMatch(c -> c.getIdCalciatore() == calciatore.getIdCalciatore());
+               calciatori.stream().noneMatch(c -> c.getIdCalciatore() == calciatore.getIdCalciatore());
     }
-    
+
     // equals, hashCode e toString
     @Override
     public boolean equals(Object o) {
@@ -251,16 +184,18 @@ public class SquadraFantacalcio {
         return idSquadraFantacalcio == that.idSquadraFantacalcio &&
                Objects.equals(nomeSquadra, that.nomeSquadra);
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(idSquadraFantacalcio, nomeSquadra);
     }
-    
+
     @Override
     public String toString() {
-        return String.format("SquadraFantacalcio{id=%d, nome='%s', giocatori=%d, budget=%d/%d, completa=%s}", 
-                           idSquadraFantacalcio, nomeSquadra, getNumeroTotaleGiocatori(), 
-                           getBudgetSpeso(), budgetTotale, completata);
+        return String.format(
+            "SquadraFantacalcio{id=%d, nome='%s', giocatori=%d, budget=%d/%d, completata=%s}",
+            idSquadraFantacalcio, nomeSquadra, getNumeroTotaleGiocatori(),
+            getBudgetSpeso(), budgetTotale, completata
+        );
     }
 }

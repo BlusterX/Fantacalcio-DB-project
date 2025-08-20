@@ -2,17 +2,20 @@ package fantacalcio.model;
 
 public class PunteggioGiocatore {
 
-    private int id; // id_punteggio (PK)
     private int idCalciatore;
     private int idBonusMalus;
     private int numeroGiornata;
     private int quantita;
 
-    public int getId() {
-        return id;
-    }
-    public void setId(int id) {
-        this.id = id;
+    // Costruttore vuoto
+    public PunteggioGiocatore() {}
+
+    // Costruttore completo
+    public PunteggioGiocatore(int idCalciatore, int idBonusMalus, int numeroGiornata, int quantita) {
+        this.idCalciatore = idCalciatore;
+        this.idBonusMalus = idBonusMalus;
+        this.numeroGiornata = numeroGiornata;
+        this.quantita = quantita;
     }
 
     public int getIdCalciatore() {

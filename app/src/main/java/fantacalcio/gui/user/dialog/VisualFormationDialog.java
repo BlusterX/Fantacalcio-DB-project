@@ -414,31 +414,37 @@ public class VisualFormationDialog extends JDialog {
             conn = DatabaseConnection.getInstance().getConnection();
             conn.setAutoCommit(false);
             
-            // 1. Crea o aggiorna la formazione
-            String sqlFormazione = """
-                INSERT INTO FORMAZIONE (Modulo, ID_Squadra) VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE Modulo = VALUES(Modulo)
-                """;
+            String modulo = (String) comboModulo.getSelectedItem();
+            int idFormazione = -1;
             
-            int idFormazione;
-            try (PreparedStatement stmt = conn.prepareStatement(sqlFormazione, Statement.RETURN_GENERATED_KEYS)) {
-                stmt.setString(1, modulo);
-                stmt.setInt(2, squadra.getIdSquadraFantacalcio());
-                stmt.executeUpdate();
+            // 1. Prima controlla se esiste già una formazione per questa squadra
+            String sqlCercaFormazione = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra = ?";
+            try (PreparedStatement stmtCerca = conn.prepareStatement(sqlCercaFormazione)) {
+                stmtCerca.setInt(1, squadra.getIdSquadraFantacalcio());
                 
-                try (ResultSet rs = stmt.getGeneratedKeys()) {
+                try (ResultSet rs = stmtCerca.executeQuery()) {
                     if (rs.next()) {
-                        idFormazione = rs.getInt(1);
+                        // Formazione esistente - aggiorna
+                        idFormazione = rs.getInt("ID_Formazione");
+                        String sqlAggiornaFormazione = "UPDATE FORMAZIONE SET Modulo = ? WHERE ID_Formazione = ?";
+                        try (PreparedStatement stmtAggiorna = conn.prepareStatement(sqlAggiornaFormazione)) {
+                            stmtAggiorna.setString(1, modulo);
+                            stmtAggiorna.setInt(2, idFormazione);
+                            stmtAggiorna.executeUpdate();
+                        }
                     } else {
-                        // Se non è stata inserita, cerca l'esistente
-                        String sqlCerca = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra = ?";
-                        try (PreparedStatement stmtCerca = conn.prepareStatement(sqlCerca)) {
-                            stmtCerca.setInt(1, squadra.getIdSquadraFantacalcio());
-                            try (ResultSet rsCerca = stmtCerca.executeQuery()) {
-                                if (rsCerca.next()) {
-                                    idFormazione = rsCerca.getInt("ID_Formazione");
+                        // Nuova formazione - inserisci
+                        String sqlNuovaFormazione = "INSERT INTO FORMAZIONE (Modulo, ID_Squadra) VALUES (?, ?)";
+                        try (PreparedStatement stmtNuova = conn.prepareStatement(sqlNuovaFormazione, Statement.RETURN_GENERATED_KEYS)) {
+                            stmtNuova.setString(1, modulo);
+                            stmtNuova.setInt(2, squadra.getIdSquadraFantacalcio());
+                            stmtNuova.executeUpdate();
+                            
+                            try (ResultSet generatedKeys = stmtNuova.getGeneratedKeys()) {
+                                if (generatedKeys.next()) {
+                                    idFormazione = generatedKeys.getInt(1);
                                 } else {
-                                    throw new SQLException("Impossibile ottenere ID formazione");
+                                    throw new SQLException("Impossibile ottenere ID formazione generato");
                                 }
                             }
                         }
@@ -446,11 +452,16 @@ public class VisualFormationDialog extends JDialog {
                 }
             }
             
-            // 2. Pulisci le associazioni esistenti
+            if (idFormazione == -1) {
+                throw new SQLException("Impossibile ottenere ID formazione valido");
+            }
+            
+            // 2. Pulisci le associazioni esistenti per questa formazione
             String sqlPulisci = "DELETE FROM FORMANO WHERE ID_Formazione = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sqlPulisci)) {
                 stmt.setInt(1, idFormazione);
-                stmt.executeUpdate();
+                int deleted = stmt.executeUpdate();
+                System.out.println("DEBUG: Cancellate " + deleted + " associazioni esistenti");
             }
             
             // 3. Inserisci i titolari
@@ -458,45 +469,57 @@ public class VisualFormationDialog extends JDialog {
             try (PreparedStatement stmt = conn.prepareStatement(sqlTitolari)) {
                 for (Map.Entry<String, Calciatore> entry : posizioni.entrySet()) {
                     Calciatore calciatore = entry.getValue();
+                    System.out.println("DEBUG: Inserisco titolare - ID calciatore: " + calciatore.getIdCalciatore() + 
+                                    " (" + calciatore.getNomeCompleto() + "), ID formazione: " + idFormazione);
+                    
                     stmt.setInt(1, calciatore.getIdCalciatore());
                     stmt.setInt(2, idFormazione);
                     stmt.addBatch();
                 }
-                stmt.executeBatch();
+                int[] risultatiTitolari = stmt.executeBatch();
+                System.out.println("DEBUG: Inseriti " + risultatiTitolari.length + " titolari");
             }
             
-            // 4. Aggiungi panchinari (restanti giocatori)
-            String sqlPanchinari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina, Ordine_Panchina) VALUES (?, ?, 'SI', ?)";
+            // 4. Aggiungi panchinari (restanti giocatori della squadra)
+            String sqlPanchinari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina) VALUES (?, ?, 'SI')";
             try (PreparedStatement stmt = conn.prepareStatement(sqlPanchinari)) {
-                int ordinePanchina = 1;
+                int panchinariInseriti = 0;
+                
                 for (Calciatore calciatore : squadra.getCalciatori()) {
+                    // Se il calciatore non è tra i titolari, aggiungilo in panchina
                     if (!posizioni.containsValue(calciatore)) {
+                        System.out.println("DEBUG: Inserisco panchinaro - ID calciatore: " + calciatore.getIdCalciatore() + 
+                                        " (" + calciatore.getNomeCompleto());
+                        
                         stmt.setInt(1, calciatore.getIdCalciatore());
                         stmt.setInt(2, idFormazione);
-                        stmt.setInt(3, ordinePanchina++);
                         stmt.addBatch();
-                        
-                        // Limita la panchina a 7 giocatori
-                        if (ordinePanchina > 7) break;
+                        panchinariInseriti++;
                     }
                 }
-                stmt.executeBatch();
+                
+                if (panchinariInseriti > 0) {
+                    int[] risultatiPanchina = stmt.executeBatch();
+                    System.out.println("DEBUG: Inseriti " + risultatiPanchina.length + " panchinari");
+                }
             }
             
-            // 5. Associa la formazione alla giornata
+            // 5. Associa la formazione alla giornata (tabella SCHIERAMENTO)
             String sqlSchieramento = """
-                INSERT INTO SCHIERAMENTO (ID_Squadra, ID_Formazione, Numero_Giornata) 
-                VALUES (?, ?, ?) 
+                INSERT INTO SCHIERAMENTO (ID_Squadra, ID_Formazione) 
+                VALUES (?, ?) 
                 ON DUPLICATE KEY UPDATE ID_Formazione = VALUES(ID_Formazione)
                 """;
             try (PreparedStatement stmt = conn.prepareStatement(sqlSchieramento)) {
                 stmt.setInt(1, squadra.getIdSquadraFantacalcio());
                 stmt.setInt(2, idFormazione);
                 stmt.setInt(3, giornataCorrente);
-                stmt.executeUpdate();
+                int updated = stmt.executeUpdate();
+                System.out.println("DEBUG: Schieramento aggiornato: " + updated + " righe modificate");
             }
             
             conn.commit();
+            System.out.println("Formazione salvata con successo: " + posizioni.size() + " titolari per la giornata " + giornataCorrente);
             return true;
             
         } catch (SQLException ex) {
@@ -506,6 +529,7 @@ public class VisualFormationDialog extends JDialog {
                 System.err.println("Errore rollback: " + rollbackEx.getMessage());
             }
             System.err.println("Errore salvataggio formazione: " + ex.getMessage());
+            ex.printStackTrace(); // Aggiungi questo per vedere lo stack trace completo
             return false;
         } finally {
             try {
