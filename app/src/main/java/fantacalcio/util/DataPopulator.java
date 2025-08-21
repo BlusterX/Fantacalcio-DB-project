@@ -19,17 +19,8 @@ import fantacalcio.model.Squadra;
 import fantacalcio.model.TipoCampionato;
 
 /**
- * Popola DB da CSV:
- * - garantisce/crea TIPO_CAMPIONATO
- * - inserisce SQUADRA con ID_Calciatore=0 (placeholder)
- * - inserisce CALCIATORE con riferimento alla SQUADRA
- * - aggiorna SQUADRA.ID_Calciatore con un ID reale della stessa squadra
- *
- * CSV attesi in resources root:
  *   "/calciatori_serie_a.csv"
  *   "/calciatori_premier_league.csv"
- *
- * Colonne: Nome,Cognome,Ruolo,Squadra,Costo
  */
 public class DataPopulator {
 
@@ -96,6 +87,7 @@ public class DataPopulator {
         int createCount = 0, already = mappaSquadre.size();
 
         // Inserisci squadre mancanti usando SOLO inserisciSquadra(...) del tuo DAO
+
         for (String nomeSquadra : nomiSquadre) {
             if (!mappaSquadre.containsKey(nomeSquadra)) {
                 // NOTA: usiamo 0 come placeholder per ID_Calciatore (coerente con il tuo modello int non-null)
@@ -167,7 +159,6 @@ public class DataPopulator {
                     } else {
                         saltati++;
                     }
-
                 } catch (NumberFormatException ex) {
                     System.err.println("Riga " + riga + " - errore parsing/inserimento: " + ex.getMessage());
                     saltati++;
@@ -198,15 +189,11 @@ public class DataPopulator {
         System.out.println("Calciatori inseriti: " + inseriti + " | Calciatori saltati: " + saltati);
         System.out.println("Squadre aggiornate con ID_Calciatore reale: " + aggiornate + "/" + mappaSquadre.size());
     }
-
-    // ----------------- Helper -----------------
-
     private Integer ensureTipoCampionato(String nome, int anno) {
         // Usa SOLO getOrCreate del tuo DAO
         TipoCampionato tc = tipoCampionatoDAO.getOrCreate(nome, anno);
         return (tc != null) ? tc.getIdCampionato() : null;
     }
-
     private Map<String, Integer> creaMappaSquadrePerCampionato(int idCampionato) {
         List<Squadra> tutte = squadraDAO.trovaTutteLeSquadre();
         return tutte.stream()
@@ -218,18 +205,24 @@ public class DataPopulator {
                         LinkedHashMap::new
                 ));
     }
-
     private static Calciatore.Ruolo parseRuolo(String ruolostr) {
         String r = ruolostr.trim().toUpperCase();
         switch (r) {
-            case "P": return Calciatore.Ruolo.PORTIERE;
-            case "D": return Calciatore.Ruolo.DIFENSORE;
-            case "C": return Calciatore.Ruolo.CENTROCAMPISTA;
-            case "A": return Calciatore.Ruolo.ATTACCANTE;
-            default: throw new IllegalArgumentException("Ruolo non valido: " + ruolostr);
+            case "P" -> {
+                return Calciatore.Ruolo.PORTIERE;
+            }
+            case "D" -> {
+                return Calciatore.Ruolo.DIFENSORE;
+            }
+            case "C" -> {
+                return Calciatore.Ruolo.CENTROCAMPISTA;
+            }
+            case "A" -> {
+                return Calciatore.Ruolo.ATTACCANTE;
+            }
+            default -> throw new IllegalArgumentException("Ruolo non valido: " + ruolostr);
         }
     }
-
     private static String[] splitCsv(String line) {
         String[] semi = line.split(";");
         if (semi.length >= 5) return semi;
