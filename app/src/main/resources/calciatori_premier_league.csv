@@ -1,0 +1,306 @@
+# Arsenal
+Aaron,Ramsdale,P,Arsenal,60
+Ben,White,D,Arsenal,55
+William,Saliba,D,Arsenal,75
+Declan,Rice,C,Arsenal,80
+Martin,Odegaard,C,Arsenal,78
+Bukayo,Saka,A,Arsenal,90
+Gabriel,Jesus,A,Arsenal,70
+
+# Aston Villa
+Emiliano,Martinez,P,Aston Villa,65
+Ezri,Konsa,D,Aston Villa,55
+Pau,Torres,D,Aston Villa,58
+John,McGinn,C,Aston Villa,60
+Youri,Tielemans,C,Aston Villa,55
+Moussa,Diaby,A,Aston Villa,70
+Ollie,Watkins,A,Aston Villa,78
+
+# Bournemouth
+Norberto,Neto,P,Bournemouth,50
+Illia,Zabarnyi,D,Bournemouth,48
+Marcos,Senesi,D,Bournemouth,50
+Lewis,Cook,C,Bournemouth,45
+Ryan,Christie,C,Bournemouth,46
+Dominic,Solanke,A,Bournemouth,72
+Justin,Kluivert,A,Bournemouth,52
+
+# Brentford
+Mark,Flekken,P,Brentford,52
+Ethan,Pinnock,D,Brentford,50
+Ben,Mee,D,Brentford,46
+Mathias,Jensen,C,Brentford,52
+Christian,Norgaard,C,Brentford,55
+Bryan,Mbeumo,A,Brentford,72
+Ivan,Toney,A,Brentford,78
+
+# Brighton
+Bart,Verbruggen,P,Brighton,55
+Lewis,Dunk,D,Brighton,58
+Pervis,Estupinan,D,Brighton,56
+Pascal,Gross,C,Brighton,60
+Billy,Gilmour,C,Brighton,48
+Kaoru,Mitoma,A,Brighton,72
+Joao,Pedro,A,Brighton,68
+
+# Chelsea
+Robert,Sanchez,P,Chelsea,55
+Reece,James,D,Chelsea,60
+Levi,Colwill,D,Chelsea,55
+Enzo,Fernandez,C,Chelsea,70
+Moises,Caicedo,C,Chelsea,75
+Raheem,Sterling,A,Chelsea,68
+Nicolas,Jackson,A,Chelsea,65
+Cole,Palmer,A,Chelsea,80
+
+# Crystal Palace
+Dean,Henderson,P,Crystal Palace,54
+Joachim,Andersen,D,Crystal Palace,56
+Marc,Guehi,D,Crystal Palace,58
+Eberechi,Eze,C,Crystal Palace,72
+Jeffrey,Schlupp,C,Crystal Palace,42
+Jordan,Ayew,A,Crystal Palace,48
+Odsonne,Edouard,A,Crystal Palace,50
+
+# Everton
+Jordan,Pickford,P,Everton,62
+James,Tarkowski,D,Everton,54
+Jarrad,Branthwaite,D,Everton,60
+Amadou,Onana,C,Everton,65
+Abdoulaye,Doucoure,C,Everton,55
+Jack,Harrison,A,Everton,50
+Dominic,Calvert-Lewin,A,Everton,66
+
+# Fulham
+Bernd,Leno,P,Fulham,58
+Tim,Ream,D,Fulham,42
+Issa,Diop,D,Fulham,48
+Joao,Palhinha,C,Fulham,72
+Andreas,Pereira,C,Fulham,56
+Willian,Borges,A,Fulham,52
+Raul,Jimenez,A,Fulham,50
+
+# Ipswich Town
+Vaclav,Hladky,P,Ipswich Town,46
+Luke,Woolfenden,D,Ipswich Town,44
+Leif,Davis,D,Ipswich Town,46
+Sam,Morsy,C,Ipswich Town,48
+Massimo,Luongo,C,Ipswich Town,44
+Conor,Chaplin,A,Ipswich Town,50
+Nathan,Broadhead,A,Ipswich Town,50
+
+# Leicester City
+Mads,Hermansen,P,Leicester City,50
+Wout,Faes,D,Leicester City,50
+James,Justin,D,Leicester City,48
+Wilfred,Ndidi,C,Leicester City,58
+Harry,Winks,C,Leicester City,52
+Jamie,Vardy,A,Leicester City,60
+Patson,Daka,A,Leicester City,54
+
+# Liverpool
+Alisson,Becker,P,Liverpool,70
+Virgil,van Dijk,D,Liverpool,78
+Andrew,Robertson,D,Liverpool,65
+Trent,Alexander-Arnold,D,Liverpool,75
+Alexis,Mac Allister,C,Liverpool,68
+Dominik,Szoboszlai,C,Liverpool,70
+Mohamed,Salah,A,Liverpool,95
+Darwin,Nunez,A,Liverpool,78
+
+# Manchester City
+Ederson,Moraes,P,Manchester City,72
+Ruben,Dias,D,Manchester City,78
+Nathan,Ake,D,Manchester City,62
+Rodrigo,Hernandez,C,Manchester City,85
+Kevin,De Bruyne,C,Manchester City,90
+Phil,Foden,A,Manchester City,88
+Erling,Haaland,A,Manchester City,100
+Bernardo,Silva,C,Manchester City,80
+
+# Manchester United
+Andre,Onana,P,Manchester United,60
+Lisandro,Martinez,D,Manchester United,62
+Luke,Shaw,D,Manchester United,58
+Bruno,Fernandes,C,Manchester United,88
+Casemiro,Silva,C,Manchester United,70
+Marcus,Rashford,A,Manchester United,85
+Rasmus,Hojlund,A,Manchester United,72
+Alejandro,Garnacho,A,Manchester United,68
+
+# Newcastle United
+Nick,Pope,P,Newcastle United,60
+Kieran,Trippier,D,Newcastle United,62
+Sven,Botman,D,Newcastle United,58
+Bruno,Guimaraes,C,Newcastle United,76
+Joelinton,C,Newcastle United,60
+Anthony,Gordon,A,Newcastle United,74
+Alexander,Isak,A,Newcastle United,82
+
+# Nottingham Forest
+Matz,Sels,P,Nottingham Forest,52
+Willy,Boly,D,Nottingham Forest,46
+Murillo,Santiago,D,Nottingham Forest,56
+Morgan,Gibbs-White,C,Nottingham Forest,70
+Danilo,dos Santos,C,Nottingham Forest,56
+Taiwo,Awoniyi,A,Nottingham Forest,66
+Chris,Wood,A,Nottingham Forest,52
+
+# Southampton
+Gavin,Bazunu,P,Southampton,48
+Jan,Bednarek,D,Southampton,50
+Kyle,Walker-Peters,D,Southampton,54
+Will,Smallbone,C,Southampton,48
+Flynn,Downes,C,Southampton,50
+Adam,Armstrong,A,Southampton,56
+Che,Adams,A,Southampton,54
+
+# Tottenham Hotspur
+Guglielmo,Vicario,P,Tottenham Hotspur,66
+Cristian,Romero,D,Tottenham Hotspur,66
+Micky,van de Ven,D,Tottenham Hotspur,64
+Destiny,Udogie,D,Tottenham Hotspur,60
+James,Maddison,C,Tottenham Hotspur,80
+Rodrigo,Bentancur,C,Tottenham Hotspur,60
+Heung-Min,Son,A,Tottenham Hotspur,92
+Richarlison,De Andrade,A,Tottenham Hotspur,70
+
+# West Ham United
+Alphonse,Areola,P,West Ham United,58
+Kurt,Zouma,D,West Ham United,54
+Nayef,Aguerd,D,West Ham United,56
+Vladimir,Coufal,D,West Ham United,50
+James,Ward-Prowse,C,West Ham United,70
+Lucas,Paqueta,C,West Ham United,78
+Jarrod,Bowen,A,West Ham United,80
+Michail,Antonio,A,West Ham United,55
+
+# Wolverhampton Wanderers
+Jose,Sa,P,Wolverhampton Wanderers,56
+Craig,Dawson,D,Wolverhampton Wanderers,44
+Rayan,Ait-Nouri,D,Wolverhampton Wanderers,52
+Joao,Gomes,C,Wolverhampton Wanderers,56
+Mario,Lemina,C,Wolverhampton Wanderers,52
+Matheus,Cunha,A,Wolverhampton Wanderers,72
+Pedro,Neto,A,Wolverhampton Wanderers,70
+Hwang,Hee-chan,A,Wolverhampton Wanderers,66
+
+# Arsenal (low cost)
+David,Raya,P,Arsenal,28
+Takehiro,Tomiyasu,D,Arsenal,24
+Eddie,Nketiah,A,Arsenal,26
+Emile,Smith Rowe,C,Arsenal,22
+
+# Aston Villa (low cost)
+Robin,Olsen,P,Aston Villa,18
+Matty,Cash,D,Aston Villa,28
+Jhon,Duran,A,Aston Villa,26
+Boubacar,Kamara,C,Aston Villa,28
+
+# Bournemouth (low cost)
+Mark,Travers,P,Bournemouth,18
+Adam,Smith,D,Bournemouth,20
+Antoine,Semenyo,A,Bournemouth,28
+Joe,Rothwell,C,Bournemouth,22
+
+# Brentford (low cost)
+Thomas,Strakosha,P,Brentford,18
+Mads,Roerslev,D,Brentford,20
+Keane,Lewis-Potter,A,Brentford,24
+Vitaly,Janelt,C,Brentford,26
+
+# Brighton (low cost)
+Jason,Steele,P,Brighton,22
+Adam,Webster,D,Brighton,24
+Facundo,Buonanotte,A,Brighton,22
+Simon,Adingra,A,Brighton,28
+
+# Chelsea (low cost)
+Djordje,Petrovic,P,Chelsea,24
+Malo,Gusto,D,Chelsea,24
+Armando,Broja,A,Chelsea,26
+Carney,Chukwuemeka,C,Chelsea,20
+
+# Crystal Palace (low cost)
+Sam,Johnstone,P,Crystal Palace,24
+Nathaniel,Clyne,D,Crystal Palace,18
+Matheus,Franca,A,Crystal Palace,22
+Will,Hughes,C,Crystal Palace,20
+
+# Everton (low cost)
+Joao,Virginia,P,Everton,18
+Ben,Godfrey,D,Everton,20
+Beto,Betuncal,A,Everton,28
+James,Garner,C,Everton,24
+
+# Fulham (low cost)
+Marek,Rodak,P,Fulham,18
+Kenny,Tete,D,Fulham,24
+Carlos,Vinicius,A,Fulham,24
+Harrison,Reed,C,Fulham,22
+
+# Ipswich Town (low cost)
+Christian,Walton,P,Ipswich Town,20
+Harry,Clarke,D,Ipswich Town,18
+Kieffer,Moore,A,Ipswich Town,26
+Omari,Hutchinson,A,Ipswich Town,22
+
+# Leicester City (low cost)
+Jakub,Stolarczyk,P,Leicester City,18
+Conor,Coady,D,Leicester City,22
+Kelechi,Iheanacho,A,Leicester City,28
+Hamza,Choudhury,C,Leicester City,20
+
+# Liverpool (low cost)
+Caoimhin,Kelleher,P,Liverpool,22
+Joe,Gomez,D,Liverpool,24
+Cody,Gakpo,A,Liverpool,28
+Curtis,Jones,C,Liverpool,26
+
+# Manchester City (low cost)
+Stefan,Ortega,P,Manchester City,22
+Sergio,Gomez,D,Manchester City,18
+Oscar,Bobb,A,Manchester City,22
+Mateo,Kovacic,C,Manchester City,28
+
+# Manchester United (low cost)
+Altay,Bayindir,P,Manchester United,20
+Diogo,Dalot,D,Manchester United,26
+Anthony,Martial,A,Manchester United,28
+Scott,McTominay,C,Manchester United,28
+
+# Newcastle United (low cost)
+Martin,Dubravka,P,Newcastle United,22
+Emil,Krafth,D,Newcastle United,18
+Callum,Wilson,A,Newcastle United,28
+Sean,Longstaff,C,Newcastle United,24
+
+# Nottingham Forest (low cost)
+Odysseas,Vlachodimos,P,Nottingham Forest,22
+Neco,Williams,D,Nottingham Forest,22
+Divock,Origi,A,Nottingham Forest,20
+Ryan,Yates,C,Nottingham Forest,18
+
+# Southampton (low cost)
+Alex,McCarthy,P,Southampton,20
+James,Bree,D,Southampton,16
+Sekou,Mara,A,Southampton,22
+Carlos,Alcaraz,C,Southampton,28
+
+# Tottenham Hotspur (low cost)
+Fraser,Forster,P,Tottenham Hotspur,18
+Emerson,Royal,D,Tottenham Hotspur,24
+Brennan,Johnson,A,Tottenham Hotspur,28
+Pierre-Emile,Hojbjerg,C,Tottenham Hotspur,28
+
+# West Ham United (low cost)
+Lukasz,Fabianski,P,West Ham United,22
+Ben,Johnson,D,West Ham United,16
+Danny,Ings,A,West Ham United,26
+Tomas,Soucek,C,West Ham United,28
+
+# Wolverhampton Wanderers (low cost)
+Dan,Bentley,P,Wolverhampton Wanderers,18
+Max,Kilman,D,Wolverhampton Wanderers,26
+Fabio,Silva,A,Wolverhampton Wanderers,24
+Boubacar,Traore,C,Wolverhampton Wanderers,20
