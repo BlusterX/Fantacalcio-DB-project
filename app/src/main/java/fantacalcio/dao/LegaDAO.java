@@ -16,316 +16,234 @@ import fantacalcio.util.DatabaseConnection;
  * Data Access Object per la gestione delle leghe
  */
 public class LegaDAO {
-    
+
     private final DatabaseConnection dbConnection;
-    
+
     public LegaDAO() {
         this.dbConnection = DatabaseConnection.getInstance();
     }
-    
+
     /**
      * Crea una nuova lega
      */
     public boolean creaLega(Lega lega) {
-        Connection conn = null;
-        try {
-            conn = dbConnection.getConnection();
-            conn.setAutoCommit(false);
-            
-            // 1. Inserisci la lega
-            String sqlLega = "INSERT INTO LEGA (Nome, Codice_accesso) VALUES (?, ?)";
-            
-            try (PreparedStatement stmtLega = conn.prepareStatement(sqlLega, Statement.RETURN_GENERATED_KEYS)) {
-                stmtLega.setString(1, lega.getNome());
-                stmtLega.setString(2, lega.getCodiceAccesso());
-                
-                int righeInserite = stmtLega.executeUpdate();
-                
-                if (righeInserite > 0) {
-                    try (ResultSet generatedKeys = stmtLega.getGeneratedKeys()) {
-                        if (generatedKeys.next()) {
-                            lega.setIdLega(generatedKeys.getInt(1));
-                        }
+        String sql = """
+            INSERT INTO LEGA (Nome, Codice_accesso, Stato, ID_Campionato, ID_Utente)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+        try (Connection conn = dbConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+        // forza unicità applicativa del codice
+        String codice = generaCodiceUnico(conn, lega.getCodiceAccesso());
+        lega.setCodiceAccesso(codice);
+
+        stmt.setString(1, lega.getNome());
+        stmt.setString(2, codice);
+        stmt.setString(3, lega.getStato()); // deve essere 'CREATA'/'IN_CORSO'/'TERMINATA'
+        if (lega.getIdCampionato() != null) stmt.setInt(4, lega.getIdCampionato());
+        else stmt.setNull(4, java.sql.Types.INTEGER);
+        stmt.setInt(5, lega.getIdAdmin());
+
+            int righeInserite = stmt.executeUpdate();
+            if (righeInserite > 0) {
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        lega.setIdLega(generatedKeys.getInt(1));
                     }
-                    
-                    // 2. Inserisci la relazione ADMIN
-                    String sqlAdmin = "INSERT INTO ADMIN (ID_Utente, ID_Lega) VALUES (?, ?)";
-                    
-                    try (PreparedStatement stmtAdmin = conn.prepareStatement(sqlAdmin)) {
-                        stmtAdmin.setInt(1, lega.getIdAdmin());
-                        stmtAdmin.setInt(2, lega.getIdLega());
-                        stmtAdmin.executeUpdate();
-                    }
-                    
-                    conn.commit();
-                    System.out.println("Lega creata: " + lega.getNome() + " (Codice: " + lega.getCodiceAccesso() + ")");
-                    return true;
                 }
+                System.out.println("Lega creata: " + lega.getNome() + " (" + lega.getCodiceAccesso() + ")");
+                return true;
             }
-            
+
         } catch (SQLException e) {
-            try {
-                if (conn != null) conn.rollback();
-            } catch (SQLException rollbackEx) {
-                System.err.println("Errore rollback: " + rollbackEx.getMessage());
-            }
             System.err.println("Errore creazione lega: " + e.getMessage());
-            if (e.getMessage().contains("Duplicate entry")) {
-                System.err.println("   Nome lega già esistente!");
-            }
-        } finally {
-            try {
-                if (conn != null) conn.setAutoCommit(true);
-            } catch (SQLException ex) {
-                System.err.println("Errore ripristino autocommit: " + ex.getMessage());
-            }
         }
         return false;
     }
-    
+
     /**
      * Trova una lega per codice di accesso
      */
     public Optional<Lega> trovaLegaPerCodice(String codiceAccesso) {
-        String sql = "SELECT * FROM LEGA WHERE Codice_accesso = ?";
-        
+        String sql = "SELECT * FROM LEGA WHERE UPPER(Codice_accesso) = ? ORDER BY ID_Lega DESC LIMIT 1";
         try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setString(1, codiceAccesso);
-            
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, codiceAccesso.toUpperCase());
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(creaLegaDaResultSet(rs));
-                }
+                if (rs.next()) return Optional.of(creaLegaDaResultSet(rs));
             }
-            
         } catch (SQLException e) {
             System.err.println("Errore ricerca lega per codice: " + e.getMessage());
         }
         return Optional.empty();
     }
-    
+
+
     /**
-     * Trova tutte le leghe di un admin
+     * Trova tutte le leghe create da un admin
      */
     public List<Lega> trovaLeghePerAdmin(int idAdmin) {
         List<Lega> leghe = new ArrayList<>();
-        String sql = "SELECT l.* FROM LEGA l " +
-                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
-                    "WHERE a.ID_Utente = ? " +
-                    "ORDER BY l.Nome";
-        
+        String sql = "SELECT * FROM LEGA WHERE ID_Utente = ? ORDER BY Nome";
+
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
+
             stmt.setInt(1, idAdmin);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Lega lega = creaLegaDaResultSet(rs);
-                    lega.setIdAdmin(idAdmin); // Impostiamo manualmente l'ID admin
-                    leghe.add(lega);
-                }
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Errore ricerca leghe per admin: " + e.getMessage());
-        }
-        return leghe;
-    }
-    
-    /**
-     * Trova le leghe a cui partecipa un utente (semplificata)
-     */
-    public List<Lega> trovaLeghePerUtente(int idUtente) {
-        List<Lega> leghe = new ArrayList<>();
-        
-        // Per ora restituiamo tutte le leghe, dato che la relazione PARTECIPA 
-        // non è ancora completamente implementata
-        String sql = "SELECT * FROM LEGA ORDER BY Nome";
-        
-        try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     leghe.add(creaLegaDaResultSet(rs));
                 }
             }
-            
+
+        } catch (SQLException e) {
+            System.err.println("Errore ricerca leghe per admin: " + e.getMessage());
+        }
+        return leghe;
+    }
+
+    public int contaPartecipanti(int idLega) {
+        String sql = "SELECT COUNT(DISTINCT ID_Utente) AS c FROM SQUADRA_FANTACALCIO WHERE ID_Lega = ?";
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setInt(1, idLega);
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) return rs.getInt("c");
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore conta partecipanti: " + e.getMessage());
+        }
+        return 0;
+    }
+
+
+    /**
+     * Trova tutte le leghe (partecipazioni non ancora gestite)
+     */
+    public List<Lega> trovaLeghePerUtente(int idUtente) {
+        List<Lega> leghe = new ArrayList<>();
+        String sql = """
+            SELECT DISTINCT l.*
+            FROM LEGA l
+            LEFT JOIN SQUADRA_FANTACALCIO sf ON sf.ID_Lega = l.ID_Lega
+            WHERE l.ID_Utente = ? OR sf.ID_Utente = ?
+            ORDER BY l.Nome
+            """;
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, idUtente);
+            stmt.setInt(2, idUtente);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) leghe.add(creaLegaDaResultSet(rs));
+            }
         } catch (SQLException e) {
             System.err.println("Errore ricerca leghe per utente: " + e.getMessage());
         }
         return leghe;
     }
-    
+
+
     /**
-     * Fa partecipare una squadra a una lega
-     */
-    public boolean partecipaLega(int idSquadra, int idLega) {
-        String sql = "INSERT INTO PARTECIPA (ID_Squadra, ID_Lega) VALUES (?, ?)";
-        
-        try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, idSquadra);
-            stmt.setInt(2, idLega);
-            
-            int righeInserite = stmt.executeUpdate();
-            
-            if (righeInserite > 0) {
-                System.out.println("Squadra " + idSquadra + " aggiunta alla lega " + idLega);
-                return true;
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Errore partecipazione lega: " + e.getMessage());
-            if (e.getMessage().contains("Duplicate entry")) {
-                System.err.println("   Squadra già partecipa a questa lega!");
-            }
-        }
-        return false;
-    }
-    
-    /**
-     * Verifica se una squadra partecipa già a una lega
-     */
-    public boolean squadraPartecipaLega(int idSquadra, int idLega) {
-        String sql = "SELECT COUNT(*) FROM PARTECIPA WHERE ID_Squadra = ? AND ID_Lega = ?";
-        
-        try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, idSquadra);
-            stmt.setInt(2, idLega);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1) > 0;
-                }
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Errore verifica partecipazione: " + e.getMessage());
-        }
-        return false;
-    }
-    
-    /**
-     * Conta il numero di partecipanti a una lega
-     */
-    public int contaPartecipanti(int idLega) {
-        String sql = "SELECT COUNT(*) FROM PARTECIPA WHERE ID_Lega = ?";
-        
-        try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, idLega);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Errore conteggio partecipanti: " + e.getMessage());
-        }
-        return 0;
-    }
-    
-    /**
-     * Elimina una lega (solo se è l'admin)
+     * Elimina una lega (solo se è l'admin che l'ha creata)
      */
     public boolean eliminaLega(int idLega, int idAdmin) {
-        String sql = "DELETE l FROM LEGA l " +
-                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
-                    "WHERE l.ID_Lega = ? AND a.ID_Utente = ?";
-        
+        String sql = "DELETE FROM LEGA WHERE ID_Lega = ? AND ID_Utente = ?";
+
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
+
             stmt.setInt(1, idLega);
             stmt.setInt(2, idAdmin);
-            
+
             int righeEliminate = stmt.executeUpdate();
-            
             if (righeEliminate > 0) {
                 System.out.println("Lega eliminata (ID: " + idLega + ")");
                 return true;
             }
-            
+
         } catch (SQLException e) {
             System.err.println("Errore eliminazione lega: " + e.getMessage());
         }
         return false;
     }
-    
+
     /**
      * Aggiorna una lega
      */
     public boolean aggiornaLega(Lega lega) {
-        String sql = "UPDATE LEGA l " +
-                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
-                    "SET l.Nome = ? " +
-                    "WHERE l.ID_Lega = ? AND a.ID_Utente = ?";
-        
+        String sql = """
+            UPDATE LEGA
+            SET Nome = ?, Stato = ?, ID_Campionato = ?
+            WHERE ID_Lega = ? AND ID_Utente = ?
+            """;
+
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
+
             stmt.setString(1, lega.getNome());
-            stmt.setInt(2, lega.getIdLega());
-            stmt.setInt(3, lega.getIdAdmin());
-            
-            int righeAggiornate = stmt.executeUpdate();
-            
-            if (righeAggiornate > 0) {
+            stmt.setString(2, lega.getStato());
+            if (lega.getIdCampionato() != null) {
+                stmt.setInt(3, lega.getIdCampionato());
+            } else {
+                stmt.setNull(3, java.sql.Types.INTEGER);
+            }
+            stmt.setInt(4, lega.getIdLega());
+            stmt.setInt(5, lega.getIdAdmin());
+
+            int updated = stmt.executeUpdate();
+            if (updated > 0) {
                 System.out.println("Lega aggiornata: " + lega.getNome());
                 return true;
             }
-            
+
         } catch (SQLException e) {
             System.err.println("Errore aggiornamento lega: " + e.getMessage());
         }
         return false;
     }
-    
+
     /**
-     * Verifica se un nome lega esiste già per un admin
-     */
-    public boolean nomeLegaEsiste(String nomeLega, int idAdmin) {
-        String sql = "SELECT COUNT(*) FROM LEGA l " +
-                    "JOIN ADMIN a ON l.ID_Lega = a.ID_Lega " +
-                    "WHERE l.Nome = ? AND a.ID_Utente = ?";
-        
-        try (Connection conn = dbConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setString(1, nomeLega);
-            stmt.setInt(2, idAdmin);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1) > 0;
-                }
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Errore verifica nome lega: " + e.getMessage());
-        }
-        return false;
-    }
-    
-    /**
-     * Metodo helper per creare un oggetto Lega da un ResultSet
+     * Crea un oggetto Lega a partire dal ResultSet
      */
     private Lega creaLegaDaResultSet(ResultSet rs) throws SQLException {
         return new Lega(
-            rs.getInt("ID_Lega"),
-            rs.getString("Nome"),
-            rs.getString("Codice_accesso"),
-            0 // L'ID admin verrà impostato separatamente se necessario
+                rs.getInt("ID_Lega"),
+                rs.getString("Nome"),
+                rs.getString("Codice_accesso"),
+                rs.getInt("ID_Utente"),
+                rs.getString("Stato"),
+                rs.getObject("ID_Campionato") != null ? rs.getInt("ID_Campionato") : null
         );
+    }
+
+    private boolean codiceEsiste(Connection conn, String code) throws SQLException {
+        try (PreparedStatement st = conn.prepareStatement(
+                "SELECT 1 FROM LEGA WHERE Codice_accesso = ? LIMIT 1")) {
+            st.setString(1, code);
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private String generaCodiceUnico(Connection conn, String seed) throws SQLException {
+        String code = (seed == null || seed.isBlank()) ? null : seed;
+        int tentativi = 0;
+        while (code == null || codiceEsiste(conn, code)) {
+            // 6 char alfanumerico maiuscolo (compatibile con VARCHAR(10))
+            String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            StringBuilder b = new StringBuilder(6);
+            java.util.Random r = new java.util.Random();
+            for (int i = 0; i < 6; i++) b.append(chars.charAt(r.nextInt(chars.length())));
+            code = b.toString();
+            if (++tentativi > 50) throw new SQLException("Impossibile generare codice lega univoco");
+        }
+        return code;
     }
 }

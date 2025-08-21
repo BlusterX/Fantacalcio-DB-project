@@ -20,7 +20,7 @@ public class FormazioneDAO {
     }
 
     /**
-     * Restituisce l'oggetto Formazione (modulo + numero giornata)
+     * Restituisce l'intera formazione (modulo, squadra, giornata, punteggio).
      */
     public Formazione getFormazioneById(int idFormazione) {
         String sql = "SELECT * FROM FORMAZIONE WHERE ID_Formazione = ?";
@@ -35,6 +35,9 @@ public class FormazioneDAO {
                     Formazione f = new Formazione();
                     f.setIdFormazione(rs.getInt("ID_Formazione"));
                     f.setModulo(rs.getString("Modulo"));
+                    f.setIdSquadraFantacalcio(rs.getInt("ID_Squadra_Fantacalcio"));
+                    f.setNumeroGiornata(rs.getInt("Numero_Giornata"));
+                    f.setPunteggio(rs.getDouble("Punteggio"));
                     return f;
                 }
             }
@@ -46,20 +49,19 @@ public class FormazioneDAO {
     }
 
     /**
-     * Restituisce l'id della formazione schierata da una squadra in una giornata
-     * (tabella SCHIERAMENTO)
+     * Restituisce l'ID della formazione schierata da una squadra in una giornata.
      */
-    public Integer getFormazioneSquadraGiornata(int idSquadra, int numeroGiornata) {
+    public Integer getFormazioneSquadraGiornata(int idSquadraFantacalcio, int numeroGiornata) {
         String sql = """
-            SELECT ID_Formazione 
-            FROM SCHIERAMENTO 
-            WHERE ID_Squadra = ? AND Numero_Giornata = ?
+            SELECT ID_Formazione
+            FROM FORMAZIONE
+            WHERE ID_Squadra_Fantacalcio = ? AND Numero_Giornata = ?
             """;
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, idSquadra);
+            stmt.setInt(1, idSquadraFantacalcio);
             stmt.setInt(2, numeroGiornata);
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -74,29 +76,25 @@ public class FormazioneDAO {
         return null;
     }
 
-    /**
-     * Recupera tutti i calciatori TITOLARI di una formazione (Panchina = 'NO')
-     */
     public List<Calciatore> trovaTitolari(int idFormazione) {
         return trovaCalciatoriByFormazione(idFormazione, false);
     }
 
-    /**
-     * Recupera tutti i calciatori PANCHINARI di una formazione (Panchina = 'SI')
-     */
     public List<Calciatore> trovaPanchinari(int idFormazione) {
         return trovaCalciatoriByFormazione(idFormazione, true);
     }
 
-    // ---- Metodo interno che esegue la query ----
+    // --------------------------------------
+
     private List<Calciatore> trovaCalciatoriByFormazione(int idFormazione, boolean panchina) {
         List<Calciatore> calciatori = new ArrayList<>();
 
         String sql = """
-            SELECT c.* FROM CALCIATORE c
-            JOIN FORMANO f ON c.ID_Calciatore = f.ID_Calciatore
+            SELECT c.*
+            FROM CALCIATORE c
+                     JOIN FORMANO f ON c.ID_Calciatore = f.ID_Calciatore
             WHERE f.ID_Formazione = ? AND f.Panchina = ?
-        """;
+            """;
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -106,12 +104,23 @@ public class FormazioneDAO {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
+                    Calciatore.Ruolo ruolo = switch (rs.getString("Ruolo")) {
+                        case "P" -> Calciatore.Ruolo.PORTIERE;
+                        case "D" -> Calciatore.Ruolo.DIFENSORE;
+                        case "C" -> Calciatore.Ruolo.CENTROCAMPISTA;
+                        case "A" -> Calciatore.Ruolo.ATTACCANTE;
+                        default -> throw new IllegalArgumentException("Ruolo non valido: " + rs.getString("Ruolo"));
+                    };
+
                     Calciatore c = new Calciatore(
                             rs.getInt("ID_Calciatore"),
                             rs.getString("Nome"),
                             rs.getString("Cognome"),
-                            Calciatore.Ruolo.valueOf(rs.getString("Ruolo")),
-                            rs.getInt("Costo")
+                            ruolo,
+                            rs.getInt("Costo"),
+                            rs.getBoolean("Infortunato"),
+                            rs.getBoolean("Squalificato"),
+                            rs.getInt("ID_Squadra")
                     );
                     calciatori.add(c);
                 }

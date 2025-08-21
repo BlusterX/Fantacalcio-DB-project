@@ -17,29 +17,27 @@ public class VotoGiornataDAO {
     }
 
     /**
-     * Inserisce un voto nella tabella Voto_Giornata
+     * INSERT semplice in VOTO_GIORNATA.
+     * La PK (Numero_Giornata, ID_Calciatore) impedisce duplicati.
      */
     public boolean inserisciVoto(VotoGiornata voto) {
-        String sql = """
-            INSERT INTO Voto_Giornata (id_calciatore, numero_giornata, voto_base, minuti_giocati)
-            VALUES (?, ?, ?, ?)
-            """;
-
+        final String sql = """
+            INSERT INTO VOTO_GIORNATA (ID_Calciatore, Numero_Giornata, Voto_base)
+            VALUES (?, ?, ?)
+        """;
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, voto.getIdCalciatore());
             stmt.setInt(2, voto.getNumeroGiornata());
             stmt.setDouble(3, voto.getVotoBase());
-            stmt.setInt(4, voto.getMinutiGiocati());
 
             int rows = stmt.executeUpdate();
             if (rows > 0) {
-                System.out.println("Voto salvato -> Calciatore " 
-                    + voto.getIdCalciatore() + ", giornata " + voto.getNumeroGiornata());
+                System.out.println("Voto salvato -> Calciatore " + voto.getIdCalciatore()
+                        + ", giornata " + voto.getNumeroGiornata());
                 return true;
             }
-
         } catch (SQLException e) {
             System.err.println("Errore inserimento voto giornata: " + e.getMessage());
         }
@@ -47,11 +45,38 @@ public class VotoGiornataDAO {
     }
 
     /**
+     * Upsert: inserisce o aggiorna Voto_base se esiste già quella PK.
+     */
+    public boolean upsertVoto(VotoGiornata voto) {
+        final String sql = """
+            INSERT INTO VOTO_GIORNATA (ID_Calciatore, Numero_Giornata, Voto_base)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE Voto_base = VALUES(Voto_base)
+        """;
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, voto.getIdCalciatore());
+            stmt.setInt(2, voto.getNumeroGiornata());
+            stmt.setDouble(3, voto.getVotoBase());
+
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            System.err.println("Errore upsert voto giornata: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Recupera il voto base del calciatore in una determinata giornata
      */
     public VotoGiornata trovaVoto(int idCalciatore, int numeroGiornata) {
-        String sql = "SELECT * FROM Voto_Giornata WHERE id_calciatore = ? AND numero_giornata = ?";
-
+        final String sql = """
+            SELECT Numero_Giornata, ID_Calciatore, Voto_base
+            FROM VOTO_GIORNATA
+            WHERE ID_Calciatore = ? AND Numero_Giornata = ?
+        """;
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -63,7 +88,6 @@ public class VotoGiornataDAO {
                     return creaVotoDaResultSet(rs);
                 }
             }
-
         } catch (SQLException e) {
             System.err.println("Errore ricerca voto giornata: " + e.getMessage());
         }
@@ -71,15 +95,57 @@ public class VotoGiornataDAO {
     }
 
     /**
-     * Metodo helper per creare un VotoGiornata da ResultSet
+     * Aggiorna il voto base (dato PK composta)
+     */
+    public boolean aggiornaVotoBase(int idCalciatore, int numeroGiornata, double nuovoVotoBase) {
+        final String sql = """
+            UPDATE VOTO_GIORNATA
+            SET Voto_base = ?
+            WHERE ID_Calciatore = ? AND Numero_Giornata = ?
+        """;
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setDouble(1, nuovoVotoBase);
+            stmt.setInt(2, idCalciatore);
+            stmt.setInt(3, numeroGiornata);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Errore aggiornamento voto giornata: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Cancella il voto (dato PK composta)
+     */
+    public boolean eliminaVoto(int idCalciatore, int numeroGiornata) {
+        final String sql = """
+            DELETE FROM VOTO_GIORNATA
+            WHERE ID_Calciatore = ? AND Numero_Giornata = ?
+        """;
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, idCalciatore);
+            stmt.setInt(2, numeroGiornata);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Errore eliminazione voto giornata: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Mapping ResultSet -> VotoGiornata
+     * NB: il DB salva solo il Voto_base; gli altri campi del model sono calcolati/gestiti app.
      */
     private VotoGiornata creaVotoDaResultSet(ResultSet rs) throws SQLException {
         VotoGiornata v = new VotoGiornata();
-        v.setIdVoto(rs.getInt("id_voto"));
-        v.setIdCalciatore(rs.getInt("id_calciatore"));
-        v.setNumeroGiornata(rs.getInt("numero_giornata"));
-        v.setVotoBase(rs.getDouble("voto_base"));
-        v.setMinutiGiocati(rs.getInt("minuti_giocati"));
+        v.setIdCalciatore(rs.getInt("ID_Calciatore"));
+        v.setNumeroGiornata(rs.getInt("Numero_Giornata"));
+        v.setVotoBase(rs.getDouble("Voto_base"));
+        // gli altri campi (minuti, gol, ecc.) restano ai default del model
         return v;
     }
 }

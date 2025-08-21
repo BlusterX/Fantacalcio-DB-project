@@ -23,9 +23,9 @@ public class PunteggioGiocatoreDAO {
      */
     public boolean inserisciEvento(int idCalciatore, int idBonusMalus, int numeroGiornata, int quantita) {
         String sql = """
-            INSERT INTO Punteggio_Giocatore (id_calciatore, id_bonus_malus, numero_giornata, quantita)
+            INSERT INTO PUNTEGGIO (ID_Calciatore, ID_Bonus_Malus, Numero_Giornata, Quantità)
             VALUES (?, ?, ?, ?)
-        """;
+            """;
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -50,31 +50,15 @@ public class PunteggioGiocatoreDAO {
         return false;
     }
 
-    public double getValoreBonus(int idBonusMalus) {
-    String sql = "SELECT Punteggio FROM BONUS_MALUS WHERE ID_Bonus_Malus = ?";
-    try (Connection conn = dbConnection.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-        
-        stmt.setInt(1, idBonusMalus);
-        ResultSet rs = stmt.executeQuery();
-        if (rs.next()) {
-            return rs.getDouble("Punteggio");
-        }
-    } catch (SQLException e) {
-        
-    }
-        return 0;
-    }
-
     /**
      * Restituisce tutti gli eventi (bonus/malus) di un calciatore in una giornata
      */
     public List<PunteggioGiocatore> trovaEventiCalciatore(int idCalciatore, int numeroGiornata) {
         List<PunteggioGiocatore> eventi = new ArrayList<>();
         String sql = """
-            SELECT * FROM Punteggio_Giocatore
-            WHERE id_calciatore = ? AND numero_giornata = ?
-        """;
+            SELECT * FROM PUNTEGGIO
+            WHERE ID_Calciatore = ? AND Numero_Giornata = ?
+            """;
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -96,15 +80,37 @@ public class PunteggioGiocatoreDAO {
     }
 
     /**
+     * Restituisce il valore numerico del bonus/malus
+     */
+    public double getValoreBonus(int idBonusMalus) {
+        String sql = "SELECT Punteggio FROM BONUS_MALUS WHERE ID_Bonus_Malus = ?";
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, idBonusMalus);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble("Punteggio");
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Errore lettura valore bonus/malus: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
      * Metodo helper per creare oggetto PunteggioGiocatore da ResultSet
      */
     private PunteggioGiocatore creaEventoDaResultSet(ResultSet rs) throws SQLException {
-        PunteggioGiocatore p = new PunteggioGiocatore();
-        p.setId(rs.getInt("id_punteggio"));
-        p.setIdCalciatore(rs.getInt("id_calciatore"));
-        p.setIdBonusMalus(rs.getInt("id_bonus_malus"));
-        p.setNumeroGiornata(rs.getInt("numero_giornata"));
-        p.setQuantita(rs.getInt("quantita"));
-        return p;
+        return new PunteggioGiocatore(
+                rs.getInt("ID_Calciatore"),
+                rs.getInt("ID_Bonus_Malus"),
+                rs.getInt("Numero_Giornata"),
+                rs.getInt("Quantità")
+        );
     }
 }
