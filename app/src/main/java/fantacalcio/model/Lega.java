@@ -1,6 +1,5 @@
 package fantacalcio.model;
 
-import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -75,18 +74,16 @@ public class Lega {
         this.codiceAccesso = generaCodiceAccesso();
     }
 
-    // equals, hashCode e toString
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Lega lega = (Lega) o;
-        return idLega == lega.idLega && Objects.equals(nome, lega.nome);
+        if (!(o instanceof Lega)) return false;
+        return idLega == ((Lega) o).idLega;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idLega, nome);
+        return Integer.hashCode(idLega);
     }
 
     @Override

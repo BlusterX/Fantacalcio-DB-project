@@ -2,38 +2,38 @@ package fantacalcio.model;
 
 import java.util.Objects;
 
-public class SquadraSerieA {
+public class Squadra {
 
-    private int idSquadraA;
+    private int idSquadra;
     private String nome;
     private int idCampionato;
     private int idCalciatore;
 
     // Costruttori
-    public SquadraSerieA() {}
+    public Squadra() {}
 
     // usato per creazione (senza id PK)
-    public SquadraSerieA(String nome, int idCampionato, int idCalciatore) {
+    public Squadra(String nome, int idCampionato, int idCalciatore) {
         this.nome = nome;
         this.idCampionato = idCampionato;
         this.idCalciatore = idCalciatore;
     }
 
     // costruttore completo (lettura da DB)
-    public SquadraSerieA(int idSquadraA, String nome, int idCampionato, int idCalciatore) {
-        this.idSquadraA = idSquadraA;
+    public Squadra(int idSquadra, String nome, int idCampionato, int idCalciatore) {
+        this.idSquadra = idSquadra;
         this.nome = nome;
         this.idCampionato = idCampionato;
         this.idCalciatore = idCalciatore;
     }
 
     // Getters e Setters
-    public int getIdSquadraA() {
-        return idSquadraA;
+    public int getIdSquadra() {
+        return idSquadra;
     }
 
-    public void setIdSquadraA(int idSquadraA) {
-        this.idSquadraA = idSquadraA;
+    public void setIdSquadra(int idSquadra) {
+        this.idSquadra = idSquadra;
     }
 
     public String getNome() {
@@ -65,13 +65,13 @@ public class SquadraSerieA {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        SquadraSerieA that = (SquadraSerieA) o;
-        return idSquadraA == that.idSquadraA && Objects.equals(nome, that.nome);
+        Squadra that = (Squadra) o;
+        return idSquadra == that.idSquadra && Objects.equals(nome, that.nome);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idSquadraA, nome);
+        return Objects.hash(idSquadra, nome);
     }
 
     @Override
