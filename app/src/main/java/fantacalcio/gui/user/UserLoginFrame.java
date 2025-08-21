@@ -13,6 +13,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -28,6 +29,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
 import fantacalcio.dao.UtenteDAO;
 import fantacalcio.gui.user.dialog.UserRegistrationDialog;
@@ -268,7 +270,7 @@ public class UserLoginFrame extends JFrame {
                         txtNickname.requestFocus();
                     }
                     
-                } catch (Exception ex) {
+                } catch (InterruptedException | ExecutionException ex) {
                     mostraErrore("Errore durante l'accesso: " + ex.getMessage());
                     setButtonsEnabled(true);
                 }
@@ -337,17 +339,14 @@ public class UserLoginFrame extends JFrame {
      * Main method per testare la finestra
      */
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    UIManager.setLookAndFeel(UIManager.getLookAndFeel());
-                } catch (Exception e) {
-                    System.out.println("Impossibile impostare il Look and Feel del sistema");
-                }
-                
-                new UserLoginFrame().setVisible(true);
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getLookAndFeel());
+            } catch (UnsupportedLookAndFeelException e) {
+                System.out.println("Impossibile impostare il Look and Feel del sistema");
             }
+            
+            new UserLoginFrame().setVisible(true);
         });
     }
 }

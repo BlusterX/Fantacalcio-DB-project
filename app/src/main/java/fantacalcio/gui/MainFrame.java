@@ -103,12 +103,8 @@ public class MainFrame extends JFrame {
      * Aggiorna il titolo della finestra con statistiche
      */
     public void updateTitle() {
-        int numUtenti = utentiPanel.getNumUtenti();
-        int numSquadre = squadrePanel.getNumSquadre();
-        int numCalciatori = calciatoriPanel.getNumCalciatori();
         
-        setTitle(String.format("FantaCalcio - Pannello Amministrazione (%d utenti, %d squadre, %d calciatori)", 
-                              numUtenti, numSquadre, numCalciatori));
+        setTitle(String.format("FantaCalcio - Pannello Amministrazione"));
     }
     
     /**

@@ -18,9 +18,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
-import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
 import fantacalcio.gui.user.dialog.UserProfileDialog;
@@ -32,13 +30,10 @@ import fantacalcio.gui.user.panels.UserDashboardPanel;
 import fantacalcio.model.Lega;
 import fantacalcio.model.Utente;
 
-/**
- * Finestra principale per l'interfaccia utente del fantacalcio
- */
 public class UserMainFrame extends JFrame {
-    
+
     private final Utente utenteCorrente;
-    
+
     // Componenti GUI
     private JTabbedPane tabbedPane;
     private UserDashboardPanel dashboardPanel;
@@ -49,154 +44,105 @@ public class UserMainFrame extends JFrame {
     private boolean inLeagueDetail = false;
     // Menu
     private JMenuBar menuBar;
-    
     public UserMainFrame(Utente utente) {
         this.utenteCorrente = utente;
-        
         initializeGUI();
         setLocationRelativeTo(null);
     }
-    
     private void initializeGUI() {
         setTitle("FantaCalcio - " + utenteCorrente.getNickname());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
-        setMinimumSize(new Dimension(1400, 800));
-        
+        setMinimumSize(new Dimension(1200, 720));
         createMenuBar();
         createTopPanel();
         createTabbedPane();
-        
         pack();
         setExtendedState(JFrame.MAXIMIZED_BOTH);
     }
-    
     /**
-     * Crea la barra dei menu
+     * Barra menu
      */
     private void createMenuBar() {
         menuBar = new JMenuBar();
-        
         // Menu Account
         JMenu menuAccount = new JMenu("Account");
-        
         JMenuItem itemProfilo = new JMenuItem("Il mio profilo");
         itemProfilo.addActionListener(this::mostraProfilo);
-        
         JMenuItem itemLogout = new JMenuItem("Logout");
         itemLogout.addActionListener(this::logout);
-        
         menuAccount.add(itemProfilo);
         menuAccount.addSeparator();
         menuAccount.add(itemLogout);
-        
-        // Menu Admin - SEMPRE VISIBILE per tutti gli utenti
+        // Menu Admin
         JMenu menuAdmin = new JMenu("Admin leghe");
-        
-        JMenuItem itemAdminPanel = new JMenuItem("Gestione delle leghe create");
+        JMenuItem itemAdminPanel = new JMenuItem("Gestione leghe create");
         itemAdminPanel.addActionListener(this::apriAdminPanel);
-        
         menuAdmin.add(itemAdminPanel);
-        
         // Menu Aiuto
         JMenu menuAiuto = new JMenu("Aiuto");
-        
-        JMenuItem itemRegole = new JMenuItem("Regole del gioco");
-        itemRegole.addActionListener(this::mostraRegole);
-        
         JMenuItem itemInfo = new JMenuItem("Informazioni");
         itemInfo.addActionListener(this::mostraInfo);
-        
-        menuAiuto.add(itemRegole);
         menuAiuto.add(itemInfo);
-        
         menuBar.add(menuAccount);
-        menuBar.add(menuAdmin); // Sempre visibile
+        menuBar.add(menuAdmin);
         menuBar.add(Box.createHorizontalGlue());
         menuBar.add(menuAiuto);
-        
         setJMenuBar(menuBar);
     }
-    
-    /**
-     * Crea il pannello superiore con informazioni utente
-     */
     private void createTopPanel() {
         JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBackground(new Color(33, 150, 243));
-        topPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-        
-        // Informazioni utente a sinistra
-        JPanel userInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        userInfoPanel.setBackground(new Color(33, 150, 243));
-        
-        JLabel welcomeLabel = new JLabel("🏆 Benvenuto, " + utenteCorrente.getNickname() + "!");
-        welcomeLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
-        welcomeLabel.setForeground(Color.WHITE);
-        
-        JLabel userDetailsLabel = new JLabel(utenteCorrente.getNomeCompleto() + " • " + utenteCorrente.getEmail());
-        userDetailsLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
-        userDetailsLabel.setForeground(new Color(200, 230, 255));
-        
+        topPanel.setBackground(new Color(245, 247, 250));
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        // Info utente a sinistra
+        JPanel userInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        userInfoPanel.setOpaque(false);
+        JLabel welcomeLabel = new JLabel("Benvenuto, " + utenteCorrente.getNickname());
+        welcomeLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        welcomeLabel.setForeground(new Color(33, 37, 41));
+        JLabel userDetailsLabel = new JLabel(" | " + utenteCorrente.getNomeCompleto() + " • " + utenteCorrente.getEmail());
+        userDetailsLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        userDetailsLabel.setForeground(new Color(90, 98, 105));
         userInfoPanel.add(welcomeLabel);
-        userInfoPanel.add(Box.createHorizontalStrut(20));
         userInfoPanel.add(userDetailsLabel);
-        
-        // Pulsante logout a destra
         JButton btnLogout = new JButton("Logout");
-        btnLogout.setBackground(new Color(244, 67, 54));
-        btnLogout.setForeground(Color.WHITE);
-        btnLogout.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        btnLogout.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        btnLogout.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         btnLogout.setFocusPainted(false);
         btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnLogout.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(210, 214, 219)),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        btnLogout.setBackground(Color.WHITE);
         btnLogout.addActionListener(this::logout);
-        
         topPanel.add(userInfoPanel, BorderLayout.WEST);
         topPanel.add(btnLogout, BorderLayout.EAST);
-        
         add(topPanel, BorderLayout.NORTH);
     }
-    
-    /**
-     * Crea le tab con i panel dedicati
-     */
     private void createTabbedPane() {
-        // Crea il pannello principale che conterrà o le tab o il dettaglio lega
         mainContentPanel = new JPanel(new BorderLayout());
-        
         tabbedPane = new JTabbedPane();
-        
-        // Crea SOLO i panel necessari
+        // Solo i pannelli necessari
         dashboardPanel = new UserDashboardPanel(this, utenteCorrente);
         joinLeaguePanel = new JoinLeaguePanel(this, utenteCorrente);
-        // RIMUOVERE: createTeamPanel e manageTeamPanel
-        
-        // Aggiungi SOLO le tab necessarie
-        tabbedPane.addTab("🏠 Dashboard", dashboardPanel);
-        tabbedPane.addTab("🏆 Le mie Leghe", joinLeaguePanel);
-        // RIMUOVERE: le tab di creazione e gestione squadre
-        
-        // Stile delle tab
-        tabbedPane.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        
-        // Event listener semplificato
+        // RIMOSSE: createTeamPanel e manageTeamPanel
+        tabbedPane.addTab("Dashboard", dashboardPanel);
+        tabbedPane.addTab("Le mie Leghe", joinLeaguePanel);
+        // Stile sobrio
+        tabbedPane.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         tabbedPane.addChangeListener(e -> {
             if (!inLeagueDetail) {
-                int selectedIndex = tabbedPane.getSelectedIndex();
-                switch (selectedIndex) {
+                int idx = tabbedPane.getSelectedIndex();
+                switch (idx) {
                     case 0 -> dashboardPanel.refreshData();
                     case 1 -> joinLeaguePanel.refreshData();
                 }
                 updateTitle();
             }
         });
-        
-        // Inizialmente mostra le tab
         mainContentPanel.add(tabbedPane, BorderLayout.CENTER);
         add(mainContentPanel, BorderLayout.CENTER);
-        
-        // Carica i dati iniziali
+        // Dati iniziali
         SwingUtilities.invokeLater(() -> {
             dashboardPanel.refreshData();
             updateTitle();
@@ -205,170 +151,80 @@ public class UserMainFrame extends JFrame {
 
     public void openLeagueDetail(Lega lega) {
         inLeagueDetail = true;
-        
-        // Rimuovi il contenuto attuale
         mainContentPanel.removeAll();
-        
-        // Crea il panel per il dettaglio della lega
         LeagueDetailPanel leagueDetailPanel = new LeagueDetailPanel(this, utenteCorrente, lega);
-        
-        // Crea un panel wrapper con pulsante "Torna alle leghe"
         JPanel wrapperPanel = new JPanel(new BorderLayout());
-        
-        // Header con pulsante back
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        JButton btnBack = new JButton("← Torna alle Leghe");
-        btnBack.setBackground(new Color(158, 158, 158));
-        btnBack.setForeground(Color.WHITE);
-        btnBack.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        btnBack.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        headerPanel.setBackground(new Color(245, 247, 250));
+        JButton btnBack = new JButton("← Indietro");
+        btnBack.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         btnBack.setFocusPainted(false);
         btnBack.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnBack.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(210, 214, 219)),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        btnBack.setBackground(Color.WHITE);
         btnBack.addActionListener(e -> backToMainView());
-        
-        JLabel leagueTitle = new JLabel("🏆 " + lega.getNome() + " (" + lega.getCodiceAccesso() + ")");
-        leagueTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
-        leagueTitle.setForeground(new Color(33, 150, 243));
-        
+
+        JLabel leagueTitle = new JLabel(lega.getNome() + " (" + lega.getCodiceAccesso() + ")");
+        leagueTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        leagueTitle.setForeground(new Color(33, 37, 41));
         headerPanel.add(btnBack, BorderLayout.WEST);
         headerPanel.add(leagueTitle, BorderLayout.CENTER);
-        
         wrapperPanel.add(headerPanel, BorderLayout.NORTH);
         wrapperPanel.add(leagueDetailPanel, BorderLayout.CENTER);
-        
-        // Mostra il nuovo contenuto
         mainContentPanel.add(wrapperPanel, BorderLayout.CENTER);
         mainContentPanel.revalidate();
         mainContentPanel.repaint();
-        
-        // Aggiorna il titolo
         setTitle("FantaCalcio - " + utenteCorrente.getNickname() + " - " + lega.getNome());
     }
 
-    // NUOVO METODO: Torna alla vista principale con le tab
     public void backToMainView() {
         inLeagueDetail = false;
-        
-        // Rimuovi il contenuto attuale
         mainContentPanel.removeAll();
-        
-        // Ripristina le tab
         mainContentPanel.add(tabbedPane, BorderLayout.CENTER);
-        
-        // Vai alla tab delle leghe
-        tabbedPane.setSelectedIndex(1); // Tab "Le mie Leghe"
-        
+        tabbedPane.setSelectedIndex(1);
         mainContentPanel.revalidate();
         mainContentPanel.repaint();
-        
-        // Refresh dati e titolo
         joinLeaguePanel.refreshData();
         updateTitle();
     }
-    
-    /**
-     * Aggiorna il titolo della finestra
-     */
     public void updateTitle() {
-        if (inLeagueDetail) {
-            // Il titolo viene gestito in openLeagueDetail()
-            return;
-        }
-        
-        int numSquadre = dashboardPanel.getNumeroSquadreUtente();
-        int squadreComplete = dashboardPanel.getNumeroSquadreComplete();
-        int numLeghe = joinLeaguePanel.getNumLeghe();
-        
-        setTitle(String.format("FantaCalcio - %s (%d leghe, %d squadre, %d complete)", 
-                            utenteCorrente.getNickname(), numLeghe, numSquadre, squadreComplete));
+        if (inLeagueDetail) return;
+        setTitle(String.format("FantaCalcio - %s",
+                utenteCorrente.getNickname()));
     }
-    
-    /**
-     * Event handlers per menu
-     */
+    // Event handlers menu
     private void mostraProfilo(ActionEvent e) {
         UserProfileDialog dialog = new UserProfileDialog(this, utenteCorrente);
         dialog.setVisible(true);
     }
-    
     private void logout(ActionEvent e) {
         int conferma = JOptionPane.showConfirmDialog(this,
-            "Sei sicuro di voler uscire?",
-            "Conferma Logout",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
+                "Sei sicuro di voler uscire?",
+                "Conferma logout",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
         if (conferma == JOptionPane.YES_OPTION) {
-            // Torna alla schermata di login
             fantacalcio.gui.user.UserLoginFrame loginFrame = new fantacalcio.gui.user.UserLoginFrame();
             loginFrame.setVisible(true);
             dispose();
         }
     }
-    
     private void apriAdminPanel(ActionEvent e) {
         try {
-            // Crea il dialog admin con gestione leghe
-            fantacalcio.gui.admin.dialogs.AdminLeagueDialog adminDialog = 
-                new fantacalcio.gui.admin.dialogs.AdminLeagueDialog(this, utenteCorrente);
+            fantacalcio.gui.admin.dialogs.AdminLeagueDialog adminDialog =
+                    new fantacalcio.gui.admin.dialogs.AdminLeagueDialog(this, utenteCorrente);
             adminDialog.setVisible(true);
-            
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
-                "Errore apertura admin panel: " + ex.getMessage(),
-                "Errore",
-                JOptionPane.ERROR_MESSAGE);
+                    "Errore apertura admin panel: " + ex.getMessage(),
+                    "Errore",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
-    
-    private void mostraRegole(ActionEvent e) {
-        String regole = """
-            📋 REGOLE DEL FANTACALCIO
-            
-            🏆 OBIETTIVO:
-            Crea la tua squadra ideale scegliendo i migliori calciatori della Serie A!
-            
-            🎯 COME INIZIARE:
-            1. Unisciti a una lega usando il codice di accesso fornito dall'admin
-            2. Crea la tua squadra fantacalcio
-            3. Componi la formazione per ogni giornata
-            4. Sfida gli altri partecipanti!
-            
-            👥 COMPOSIZIONE SQUADRA:
-            • 3 Portieri
-            • 8 Difensori  
-            • 8 Centrocampisti
-            • 6 Attaccanti
-            • Totale: 25 giocatori
-            
-            💰 BUDGET:
-            • Budget iniziale: 1000 crediti
-            • Ogni giocatore ha un costo fisso
-            • Devi rimanere entro il budget
-            
-            ⚽ REGOLE:
-            • Non puoi acquistare lo stesso giocatore due volte
-            • Devi rispettare i limiti per ruolo
-            • La squadra è completa solo quando hai tutti i 25 giocatori
-            
-            🎯 STRATEGIA:
-            • Bilancia giocatori costosi e economici
-            • Considera le prestazioni reali dei calciatori
-            • Una volta completata, la squadra è pronta per competere!
-            """;
-        
-        JTextArea textArea = new JTextArea(regole);
-        textArea.setEditable(false);
-        textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(500, 400));
-        
-        JOptionPane.showMessageDialog(this, scrollPane, "Regole del Gioco", JOptionPane.INFORMATION_MESSAGE);
-    }
-    
     private void mostraInfo(ActionEvent e) {
         String info = """
             🏆 FANTACALCIO
@@ -388,25 +244,19 @@ public class UserMainFrame extends JFrame {
             
             Buon divertimento! ⚽
             """;
-        
         JOptionPane.showMessageDialog(this, info, "Informazioni", JOptionPane.INFORMATION_MESSAGE);
     }
-    
     public void notifySquadraEliminata() {
         dashboardPanel.refreshData();
         joinLeaguePanel.refreshData();
         updateTitle();
     }
-    
     public void notifyLegaJoined() {
         joinLeaguePanel.refreshData();
         dashboardPanel.refreshData();
         updateTitle();
     }
-    
-    /**
-     * Getters per i panel
-     */
+    // Getters
     public Utente getUtenteCorrente() {
         return utenteCorrente;
     }
