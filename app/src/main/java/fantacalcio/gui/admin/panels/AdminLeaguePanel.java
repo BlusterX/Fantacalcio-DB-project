@@ -48,6 +48,7 @@ public final class AdminLeaguePanel extends JPanel {
     private JButton btnCreaLega, btnEliminaLega, btnRefresh, btnCopiaCodice;
     // Selezione corrente
     private Lega legaSelezionata;
+    private JButton btnAvviaLega;
 
     public AdminLeaguePanel(AdminContext ctx, Utente adminUtente) {
         this.ctx = ctx;
@@ -107,14 +108,17 @@ public final class AdminLeaguePanel extends JPanel {
         btnCreaLega   = mkBtn("Crea");
         btnEliminaLega= mkBtn("Elimina");
         btnRefresh    = mkBtn("Aggiorna");
+        btnAvviaLega = mkBtn("Avvia lega");
         btnCopiaCodice= mkBtn("Copia codice");
 
         btnEliminaLega.setEnabled(false);
+        btnAvviaLega.setEnabled(false);
         btnCopiaCodice.setEnabled(false);
 
         btnCreaLega.addActionListener(e -> creaLega());
         btnEliminaLega.addActionListener(e -> eliminaLega());
         btnRefresh.addActionListener(e -> loadData());
+        btnAvviaLega.addActionListener(e -> avviaLega());
         btnCopiaCodice.addActionListener(e -> copiaCodice());
     }
 
@@ -141,6 +145,7 @@ public final class AdminLeaguePanel extends JPanel {
         form.add(btnCreaLega);
         form.add(Box.createHorizontalStrut(8));
         form.add(btnRefresh);
+        form.add(btnAvviaLega);
         // center: tabella
         JScrollPane sp = new JScrollPane(tabellaLeghe);
         // bottom: azioni riga
@@ -171,6 +176,46 @@ public final class AdminLeaguePanel extends JPanel {
         };
         w.execute();
     }
+
+    private void avviaLega() {
+        if (legaSelezionata == null) return;
+        btnAvviaLega.setEnabled(false);
+        SwingWorker<Boolean, Void> w = new SwingWorker<>() {
+            @Override protected Boolean doInBackground() {
+                try {
+                    return legaDAO.avviaLegaSePronta(legaSelezionata.getIdLega());
+                } catch (IllegalStateException ex) {
+                    // rilancio per gestire un messaggio utente chiaro
+                    throw ex;
+                } catch (RuntimeException ex) {
+                    throw ex;
+                }
+            }
+            @Override protected void done() {
+                btnAvviaLega.setEnabled(true);
+                try {
+                    if (get()) {
+                        JOptionPane.showMessageDialog(AdminLeaguePanel.this,
+                                "Lega avviata! Giornata 1 generata e scontri programmati.",
+                                "OK", JOptionPane.INFORMATION_MESSAGE);
+                        loadData();
+                    } else {
+                        JOptionPane.showMessageDialog(AdminLeaguePanel.this,
+                                "Avvio non riuscito.", "Errore", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (ExecutionException ex) {
+                    String msg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+                    JOptionPane.showMessageDialog(AdminLeaguePanel.this,
+                            msg, "Impossibile avviare la lega", JOptionPane.WARNING_MESSAGE);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(AdminLeaguePanel.this,
+                            "Errore: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        w.execute();
+    }
+
 
     private void fillTable(List<Lega> leghe) {
         modelTabella.setRowCount(0);
@@ -212,6 +257,7 @@ public final class AdminLeaguePanel extends JPanel {
 
         btnEliminaLega.setEnabled(legaSelezionata != null);
         btnCopiaCodice.setEnabled(legaSelezionata != null);
+        btnAvviaLega.setEnabled(legaSelezionata != null && "CREATA".equalsIgnoreCase(legaSelezionata.getStato()));
     }
 
     private void creaLega() {
