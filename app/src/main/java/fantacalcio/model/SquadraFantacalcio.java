@@ -40,6 +40,11 @@ public class SquadraFantacalcio {
         this.idLega = null;
     }
 
+    public SquadraFantacalcio(String nome) {
+        this();
+        this.nomeSquadra = nome;
+    }
+
     // Costruttore completo (lettura da DB)
     public SquadraFantacalcio(int idSquadraFantacalcio, String nomeSquadra, int budgetTotale,
                               int budgetRimanente, LocalDateTime dataCreazione,

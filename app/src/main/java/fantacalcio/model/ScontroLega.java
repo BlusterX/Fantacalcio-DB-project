@@ -17,13 +17,14 @@ public class ScontroLega {
     private int idFormazione1;
     private int idFormazione2;
     private int giornata;
-    private String risultato;         // ex punteggio1/punteggio2
+    private String risultato;
     private StatoScontro stato;
     private LocalDateTime dataInizio;
 
-    // Campi opzionali (non presenti nel DB, utili per la GUI)
     private String nomeSquadra1;
     private String nomeSquadra2;
+
+    
 
     // Costruttori
     public ScontroLega() {
@@ -87,6 +88,21 @@ public class ScontroLega {
     /** Verifica se la partita è completata */
     public boolean isCompletata() {
         return stato == StatoScontro.COMPLETATO;
+    }
+
+    public String getStatoEmoji() {
+        return switch (stato) {
+            case PROGRAMMATO -> "🗓️";
+            case IN_CORSO   -> "🏃";
+            case COMPLETATO -> "✅";
+        };
+    }
+    public String getDescrizioneStato() {
+        return switch (stato) {
+            case PROGRAMMATO -> "Programmato";
+            case IN_CORSO   -> "In corso";
+            case COMPLETATO -> "Completato";
+        };
     }
 
     // equals, hashCode e toString
