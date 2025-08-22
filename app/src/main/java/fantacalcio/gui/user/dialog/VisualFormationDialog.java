@@ -1,5 +1,6 @@
 package fantacalcio.gui.user.dialog;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -7,651 +8,607 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import java.awt.HeadlessException;
+import java.awt.Paint;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Window;
-import java.awt.event.ActionEvent;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
-import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
-import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
+import fantacalcio.dao.FormazioneDAO;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
-import fantacalcio.util.DatabaseConnection;
 
-/**
- * Dialog per la creazione visuale della formazione
- */
+/** Dialog visuale (rifatto) per creare/salvare la formazione */
 public class VisualFormationDialog extends JDialog {
-    
+
     private final SquadraFantacalcio squadra;
     private final Utente utente;
-    private final String modulo;
+    private final String modulo;          // es. "4-3-3"
     private final int giornataCorrente;
-    
-    // Componenti GUI
-    private JPanel campoPanel;
-    private JTable tabellaGiocatori;
-    private DefaultTableModel modelTabella;
+
+    // logica
+    private final int[] moduloNumeri; // [D, C, A]
+    private final int titolariRichiesti; // 1 + D + C + A
+    private final Map<String, Calciatore> posizioni = new HashMap<>(); // "P1","D1","C2","A3" -> Calciatore
+    private final Map<String, JButton> bottoniPosizione = new HashMap<>();
+
+    // UI
+    private PitchPanel pitchPanel;
     private JButton btnSalva, btnReset;
-    
-    // Logica formazione
-    private final Map<String, Calciatore> posizioni; // "P1", "D1", "D2", etc. -> Calciatore
-    private final Map<String, JButton> bottoniPosizioni; // Riferimenti ai bottoni sul campo
-    private final int[] moduloNumeri; // [difensori, centrocampisti, attaccanti]
-    
-    public VisualFormationDialog(Window parent, SquadraFantacalcio squadra, Utente utente, String modulo) {
-        super(parent, "Formazione " + modulo + " - " + squadra.getNomeSquadra(), ModalityType.APPLICATION_MODAL);
+
+    public VisualFormationDialog(Window parent, SquadraFantacalcio squadra, Utente utente,
+                                 String modulo, int giornataCorrente) {
+        super(parent, "Formazione " + modulo + " – " + squadra.getNomeSquadra(), ModalityType.APPLICATION_MODAL);
         this.squadra = squadra;
         this.utente = utente;
         this.modulo = modulo;
-        this.giornataCorrente = 1; // TODO: Recuperare giornata corrente
-        this.posizioni = new HashMap<>();
-        this.bottoniPosizioni = new HashMap<>();
+        this.giornataCorrente = giornataCorrente;
         this.moduloNumeri = parseModulo(modulo);
-        
-        initializeGUI();
-        loadGiocatori();
+        this.titolariRichiesti = 1 + moduloNumeri[0] + moduloNumeri[1] + moduloNumeri[2];
+
+        buildUI();
+        setMinimumSize(new Dimension(1060, 720));
         setLocationRelativeTo(parent);
     }
-    
-    private void initializeGUI() {
-        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+    public VisualFormationDialog(Window parent,
+                                SquadraFantacalcio squadra,
+                                Utente utente,
+                                String modulo) {
+        this(parent,
+            squadra,
+            utente,
+            modulo,
+            new fantacalcio.dao.ScontroLegaDAO().getGiornataCorrente(squadra.getIdLega()));
+    }
+
+    /* ------------------------- UI ------------------------- */
+
+    private void buildUI() {
         setLayout(new BorderLayout());
-        setMinimumSize(new Dimension(1000, 700));
-        
-        createHeaderPanel();
-        createMainContent();
-        createBottomPanel();
-        
-        pack();
+
+        add(buildHeader(), BorderLayout.NORTH);
+        add(buildCenter(), BorderLayout.CENTER);
+        add(buildFooter(), BorderLayout.SOUTH);
+
+        updateCountersAndSave();
     }
-    
-    private void createHeaderPanel() {
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(34, 139, 34));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-        
-        JLabel titleLabel = new JLabel("⚽ Formazione " + modulo, SwingConstants.CENTER);
-        titleLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
-        titleLabel.setForeground(Color.WHITE);
-        
-        JLabel infoLabel = new JLabel("Clicca sui + per aggiungere i giocatori", SwingConstants.CENTER);
-        infoLabel.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 14));
-        infoLabel.setForeground(new Color(200, 255, 200));
-        
-        headerPanel.add(titleLabel, BorderLayout.CENTER);
-        headerPanel.add(infoLabel, BorderLayout.SOUTH);
-        
-        add(headerPanel, BorderLayout.NORTH);
+
+    private JComponent buildHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(14, 20, 12, 20));
+        header.setBackground(new Color(23, 110, 64));
+
+        JLabel title = new JLabel("⚽ Formazione " + modulo + "  •  Giornata " + giornataCorrente);
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
+
+        JLabel hint = new JLabel("Clicca sui pulsanti “+” per scegliere i giocatori del ruolo. Click destro per rimuovere.");
+        hint.setForeground(new Color(220, 255, 230));
+        hint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 13));
+
+        header.add(title, BorderLayout.NORTH);
+        header.add(hint, BorderLayout.SOUTH);
+        return header;
     }
-    
-    private void createMainContent() {
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        
-        // Pannello campo (sinistra)
-        campoPanel = createCampoPanel();
-        splitPane.setLeftComponent(campoPanel);
-        
-        // Pannello giocatori (destra)
-        JPanel giocatoriPanel = createGiocatoriPanel();
-        splitPane.setRightComponent(giocatoriPanel);
-        
-        splitPane.setDividerLocation(600);
-        splitPane.setResizeWeight(0.6);
-        
-        add(splitPane, BorderLayout.CENTER);
+
+    private JComponent buildCenter() {
+        // Solo il campo, niente split, niente scrollpane
+        pitchPanel = new PitchPanel();
+        pitchPanel.setLayout(null); // posizionamento assoluto dei bottoni
+
+        // crea i bottoni di posizione
+        createPositionButtons();
+
+        // ricalcola le posizioni ogni volta che il pannello viene ridimensionato
+        pitchPanel.addComponentListener(new ComponentAdapter() {
+            @Override public void componentResized(ComponentEvent e) {
+                layoutPositionButtons();
+            }
+        });
+
+        // suggerisco anche una preferred size "comoda"
+        pitchPanel.setPreferredSize(new Dimension(1050, 600));
+        return pitchPanel;
     }
-    
-    private JPanel createCampoPanel() {
-        JPanel panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                drawCampo(g);
+
+    private JPanel buildFooter() {
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setBorder(BorderFactory.createEmptyBorder(10, 16, 14, 16));
+        footer.setBackground(new Color(248, 249, 251));
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttons.setOpaque(false);
+
+        btnSalva = button("💾 Salva (0/" + titolariRichiesti + ")", new Color(76, 175, 80), e -> onSave());
+        btnReset = button("🔄 Reset", new Color(255, 152, 0), e -> onReset());
+        JButton chiudi = button("❌ Chiudi", new Color(158, 158, 158), e -> dispose());
+
+        buttons.add(btnSalva);
+        buttons.add(btnReset);
+        buttons.add(chiudi);
+
+        footer.add(buttons, BorderLayout.EAST);
+        return footer;
+    }
+
+
+    /* -------------------- Bottoni posizione -------------------- */
+
+    private void createPositionButtons() {
+        // GK
+        createButton("P1", Calciatore.Ruolo.PORTIERE);
+
+        // D
+        for (int i = 0; i < moduloNumeri[0]; i++)
+            createButton("D" + (i + 1), Calciatore.Ruolo.DIFENSORE);
+
+        // C
+        for (int i = 0; i < moduloNumeri[1]; i++)
+            createButton("C" + (i + 1), Calciatore.Ruolo.CENTROCAMPISTA);
+
+        // A
+        for (int i = 0; i < moduloNumeri[2]; i++)
+            createButton("A" + (i + 1), Calciatore.Ruolo.ATTACCANTE);
+
+        layoutPositionButtons();
+    }
+
+    private void createButton(String posId, Calciatore.Ruolo ruolo) {
+        JButton b = new JButton("+") {
+            @Override protected void paintComponent(Graphics g) {
+                // pill con ombra
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth(), h = getHeight();
+                // ombra
+                g2.setColor(new Color(0,0,0,35));
+                g2.fillRoundRect(4, 6, w-8, h-8, 28, 28);
+
+                // corpo
+                Color base = ruoloColor(ruolo);
+                boolean hover = getModel().isRollover();
+                Color c1 = hover ? base.brighter() : base;
+                Color c2 = hover ? base : base.darker();
+                g2.setPaint(new GradientPaint(0, 0, c1, 0, h, c2));
+                g2.fillRoundRect(0, 0, w-10, h-10, 28, 28);
+
+                // bordo
+                g2.setColor(new Color(255,255,255,160));
+                g2.setStroke(new BasicStroke(2f));
+                g2.drawRoundRect(0, 0, w-10, h-10, 28, 28);
+
+                // testo
+                g2.setColor(Color.WHITE);
+                Font f = getFont().deriveFont(Font.BOLD, 14f);
+                g2.setFont(f);
+                String t = getText();
+                FontMetrics fm = g2.getFontMetrics();
+                int tx = (w-10 - fm.stringWidth(t)) / 2;
+                int ty = (h-10 - fm.getHeight()) / 2 + fm.getAscent();
+                g2.drawString(t, tx, ty);
+
+                g2.dispose();
             }
         };
-        panel.setLayout(new GridBagLayout());
-        panel.setBackground(new Color(34, 139, 34));
-        panel.setPreferredSize(new Dimension(550, 500));
-        panel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(Color.WHITE, 2), 
-            "Campo da Gioco", 
-            0, 0, 
-            new Font(Font.SANS_SERIF, Font.BOLD, 14), 
-            Color.WHITE
-        ));
-        
-        createPosizioni(panel);
-        
-        return panel;
-    }
-    
-    private void drawCampo(Graphics g) {
-        Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        g2d.setColor(Color.WHITE);
-        
-        // Bordi campo
-        g2d.drawRect(50, 50, 450, 380);
-        
-        // Linea di metà campo
-        g2d.drawLine(50, 240, 500, 240);
-        
-        // Cerchio di centrocampo
-        g2d.drawOval(225, 190, 100, 100);
-        
-        // Aree di rigore
-        g2d.drawRect(50, 140, 80, 200);  // Area sinistra
-        g2d.drawRect(420, 140, 80, 200); // Area destra
-        
-        // Porte
-        g2d.drawRect(35, 190, 15, 100);  // Porta sinistra
-        g2d.drawRect(500, 190, 15, 100); // Porta destra
-    }
-    
-    private void createPosizioni(JPanel campo) {
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        
-        // Portiere
-        gbc.gridx = 0; gbc.gridy = 2;
-        JButton btnPortiere = createPosizioneButton("P1", Calciatore.Ruolo.PORTIERE);
-        campo.add(btnPortiere, gbc);
-        
-        // Difensori
-        int numDifensori = moduloNumeri[0];
-        for (int i = 0; i < numDifensori; i++) {
-            gbc.gridx = 1; 
-            gbc.gridy = getYPosition(i, numDifensori);
-            JButton btn = createPosizioneButton("D" + (i + 1), Calciatore.Ruolo.DIFENSORE);
-            campo.add(btn, gbc);
-        }
-        
-        // Centrocampisti
-        int numCentrocampisti = moduloNumeri[1];
-        for (int i = 0; i < numCentrocampisti; i++) {
-            gbc.gridx = 2;
-            gbc.gridy = getYPosition(i, numCentrocampisti);
-            JButton btn = createPosizioneButton("C" + (i + 1), Calciatore.Ruolo.CENTROCAMPISTA);
-            campo.add(btn, gbc);
-        }
-        
-        // Attaccanti
-        int numAttaccanti = moduloNumeri[2];
-        for (int i = 0; i < numAttaccanti; i++) {
-            gbc.gridx = 3;
-            gbc.gridy = getYPosition(i, numAttaccanti);
-            JButton btn = createPosizioneButton("A" + (i + 1), Calciatore.Ruolo.ATTACCANTE);
-            campo.add(btn, gbc);
-        }
-    }
-    
-    private int getYPosition(int index, int total) {
-        // Distribuisce i giocatori verticalmente in modo equilibrato
-        if (total == 1) return 2;
-        if (total == 2) return index == 0 ? 1 : 3;
-        if (total == 3) return index;
-        if (total == 4) return index;
-        if (total == 5) return index;
-        return index;
-    }
-    
-    private JButton createPosizioneButton(String posizione, Calciatore.Ruolo ruolo) {
-        JButton btn = new JButton("+");
-        btn.setPreferredSize(new Dimension(80, 80));
-        btn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
-        btn.setBackground(getRuoloColor(ruolo));
-        btn.setForeground(Color.WHITE);
-        btn.setBorder(BorderFactory.createLineBorder(Color.WHITE, 2));
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setToolTipText("Aggiungi " + ruolo.name().toLowerCase());
-        
-        btn.addActionListener(e -> apriSelettoreGiocatore(posizione, ruolo));
-        
-        bottoniPosizioni.put(posizione, btn);
-        return btn;
-    }
-    
-    private Color getRuoloColor(Calciatore.Ruolo ruolo) {
-        return switch (ruolo) {
-            case PORTIERE -> new Color(255, 193, 7);
-            case DIFENSORE -> new Color(63, 81, 181);
-            case CENTROCAMPISTA -> new Color(76, 175, 80);
-            case ATTACCANTE -> new Color(244, 67, 54);
-        };
-    }
-    
-    private JPanel createGiocatoriPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Giocatori Disponibili"));
-        panel.setPreferredSize(new Dimension(350, 500));
-        
-        // Tabella giocatori
-        String[] colonne = {"Nome", "Ruolo", "Costo"};
-        modelTabella = new DefaultTableModel(colonne, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        
-        tabellaGiocatori = new JTable(modelTabella);
-        tabellaGiocatori.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tabellaGiocatori.setRowHeight(25);
-        
-        JScrollPane scrollPane = new JScrollPane(tabellaGiocatori);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        
-        // Info panel
-        JLabel infoLabel = new JLabel("<html><center>Doppio click su un giocatore<br>per aggiungerlo alla posizione selezionata</center></html>");
-        infoLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        infoLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        panel.add(infoLabel, BorderLayout.SOUTH);
-        
-        return panel;
-    }
-    
-    private void createBottomPanel() {
-        JPanel bottomPanel = new JPanel(new FlowLayout());
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
-        
-        btnSalva = new JButton("💾 Salva Formazione");
-        btnReset = new JButton("🔄 Reset");
-        JButton btnChiudi = new JButton("❌ Chiudi");
-        
-        // Stile pulsanti
-        styleButton(btnSalva, new Color(76, 175, 80));
-        styleButton(btnReset, new Color(255, 152, 0));
-        styleButton(btnChiudi, new Color(158, 158, 158));
-        
-        btnSalva.addActionListener(this::salvaFormazione);
-        btnReset.addActionListener(this::resetFormazione);
-        btnChiudi.addActionListener(e -> dispose());
-        
-        bottomPanel.add(btnSalva);
-        bottomPanel.add(btnReset);
-        bottomPanel.add(btnChiudi);
-        
-        add(bottomPanel, BorderLayout.SOUTH);
-    }
-    
-    private void loadGiocatori() {
-        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                modelTabella.setRowCount(0);
-                
-                for (Calciatore calciatore : squadra.getCalciatori()) {
-                    Object[] riga = {
-                        calciatore.getNomeCompleto(),
-                        calciatore.getRuolo().name(),
-                        calciatore.getCosto() + "€"
-                    };
-                    modelTabella.addRow(riga);
+        b.setOpaque(false);
+        b.setContentAreaFilled(false);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setPreferredSize(new Dimension(120, 48));
+        b.setToolTipText("Scegli " + ruolo.name().toLowerCase());
+
+        b.addActionListener(e -> openPlayerSelector(posId, ruolo));
+        b.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    // rimuovi
+                    posizioni.remove(posId);
+                    b.setText("+");
+                    b.setToolTipText("Scegli " + ruolo.name().toLowerCase());
+                    updateCountersAndSave();
+                    pitchPanel.repaint();
                 }
-                return null;
             }
-        };
-        worker.execute();
+        });
+
+        bottoniPosizione.put(posId, b);
+        pitchPanel.add(b);
     }
-    
-    private void apriSelettoreGiocatore(String posizione, Calciatore.Ruolo ruolo) {
-        // Filtra giocatori per ruolo
-        List<Calciatore> giocatoriDisponibili = squadra.getCalciatori().stream()
-            .filter(c -> c.getRuolo() == ruolo)
-            .filter(c -> !posizioni.containsValue(c)) // Non già selezionati
-            .toList();
-        
-        if (giocatoriDisponibili.isEmpty()) {
+
+    private void layoutPositionButtons() {
+        Rectangle field = pitchPanel.getFieldRect();
+        if (field == null) return;
+
+        // colonne: GK, D, C, A (come percentuali nella "area di gioco")
+        double[] cols = { 0.06, 0.28, 0.52, 0.78 };
+
+        // GK
+        place("P1", field, cols[0], 0.50, 120, 48);
+
+        // D
+        placeRow("D", moduloNumeri[0], field, cols[1]);
+
+        // C
+        placeRow("C", moduloNumeri[1], field, cols[2]);
+
+        // A
+        placeRow("A", moduloNumeri[2], field, cols[3]);
+
+        pitchPanel.revalidate();
+        pitchPanel.repaint();
+    }
+
+    private void placeRow(String prefix, int count, Rectangle field, double colX) {
+        double[] ys = distributeY(count);
+        for (int i = 0; i < count; i++) {
+            String id = prefix + (i + 1);
+            place(id, field, colX, ys[i], 120, 48);
+        }
+    }
+
+    private void place(String id, Rectangle field, double relX, double relY, int w, int h) {
+        JButton b = bottoniPosizione.get(id);
+        if (b == null) return;
+        int x = (int) (field.x + field.width * relX) - w / 2;
+        int y = (int) (field.y + field.height * relY) - h / 2;
+        b.setBounds(x, y, w, h);
+    }
+
+    private double[] distributeY(int n) {
+        switch (n) {
+            case 1:  return new double[]{0.50};
+            case 2:  return new double[]{0.35, 0.65};
+            case 3:  return new double[]{0.25, 0.50, 0.75};
+            case 4:  return new double[]{0.18, 0.38, 0.62, 0.82};
+            case 5:  return new double[]{0.12, 0.32, 0.50, 0.68, 0.88};
+            case 6:  return new double[]{0.10, 0.28, 0.46, 0.54, 0.72, 0.90};
+            default:
+                double[] y = new double[n];
+                double step = 1.0 / (n + 1);
+                for (int i = 0; i < n; i++) y[i] = step * (i + 1);
+                return y;
+        }
+    }
+
+    /* -------------------- Selettore giocatori -------------------- */
+
+    private void openPlayerSelector(String posId, Calciatore.Ruolo ruolo) {
+        List<Calciatore> candidati = getEligiblePlayers(ruolo);
+
+        if (candidati.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "Nessun " + ruolo.name().toLowerCase() + " disponibile!",
-                "Nessun giocatore",
-                JOptionPane.WARNING_MESSAGE);
+                    "Nessun " + ruolo.name().toLowerCase() + " disponibile.",
+                    "Nessun giocatore", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        
-        // Crea dialog di selezione
-        PlayerSelectionDialog dialog = new PlayerSelectionDialog(this, giocatoriDisponibili, ruolo);
-        dialog.setVisible(true);
-        
-        if (dialog.getGiocatoreSelezionato() != null) {
-            assegnaGiocatore(posizione, dialog.getGiocatoreSelezionato());
+
+        PlayerPicker picker = new PlayerPicker(this, ruolo, candidati);
+        picker.setVisible(true);
+
+        Calciatore scelto = picker.getSelected();
+        if (scelto != null) {
+            posizioni.put(posId, scelto);
+            JButton b = bottoniPosizione.get(posId);
+            b.setText(shortName(scelto));
+            b.setToolTipText(scelto.getNomeCompleto() + " • " + ruolo.name());
+            updateCountersAndSave();
+            pitchPanel.repaint();
         }
     }
-    
-    private void assegnaGiocatore(String posizione, Calciatore giocatore) {
-        posizioni.put(posizione, giocatore);
-        
-        JButton btn = bottoniPosizioni.get(posizione);
-        btn.setText("<html><center>" + giocatore.getCognome() + "</center></html>");
-        btn.setToolTipText(giocatore.getNomeCompleto() + " (" + giocatore.getCosto() + "€)");
-        
-        updateSalvaButton();
-        campoPanel.repaint();
+
+    private List<Calciatore> getEligiblePlayers(Calciatore.Ruolo ruolo) {
+        // giocatori del ruolo non ancora usati
+        List<Calciatore> out = new ArrayList<>();
+        for (Calciatore c : squadra.getCalciatori()) {
+            if (c.getRuolo() == ruolo && !posizioni.containsValue(c)) {
+                out.add(c);
+            }
+        }
+        // ordina per cognome, poi nome
+        out.sort(Comparator.comparing(Calciatore::getCognome).thenComparing(Calciatore::getNome));
+        return out;
     }
-    
-    private void updateSalvaButton() {
-        // Abilita salva solo se abbiamo 11 giocatori
-        int giocatoriSelezionati = posizioni.size();
-        btnSalva.setEnabled(giocatoriSelezionati == 11);
-        btnSalva.setText("💾 Salva Formazione (" + giocatoriSelezionati + "/11)");
+
+    private String shortName(Calciatore c) {
+        String n = c.getNome() != null && !c.getNome().isBlank() ? c.getNome().trim() : "";
+        String g = c.getCognome() != null ? c.getCognome().trim() : "";
+        String iniz = n.isEmpty() ? "" : (n.charAt(0) + ". ");
+        return (iniz + g).trim();
     }
-    
-    private void salvaFormazione(ActionEvent e) {
-        if (posizioni.size() != 11) {
+
+    /* -------------------- Contatori e azioni -------------------- */
+
+    private void updateCountersAndSave() {
+        int tot = posizioni.size();
+        btnSalva.setEnabled(tot == titolariRichiesti);
+        btnSalva.setText("💾 Salva (" + tot + "/" + titolariRichiesti + ")");
+    }
+
+
+    private void onReset() {
+        int conf = JOptionPane.showConfirmDialog(this,
+                "Vuoi resettare la formazione (tutti gli 11 titolari)?",
+                "Conferma", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (conf != JOptionPane.YES_OPTION) return;
+
+        posizioni.clear();
+        for (JButton b : bottoniPosizione.values()) {
+            b.setText("+");
+        }
+        updateCountersAndSave();
+        pitchPanel.repaint();
+    }
+
+    private void onSave() {
+        if (posizioni.size() != titolariRichiesti) {
             JOptionPane.showMessageDialog(this,
-                "Devi selezionare esattamente 11 giocatori!",
-                "Formazione incompleta",
-                JOptionPane.WARNING_MESSAGE);
+                    "Seleziona esattamente " + titolariRichiesti + " giocatori.",
+                    "Formazione incompleta", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        
-        SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
-            @Override
-            protected Boolean doInBackground() throws Exception {
-                return salvaFormazioneDatabase();
+
+        btnSalva.setEnabled(false);
+
+        // prepara dati per il DAO
+        final int idSquadra = squadra.getIdSquadraFantacalcio();
+        final String moduloScelto = modulo; // già passato al dialog
+        final int giornata = giornataCorrente;
+
+        final List<Integer> idsTitolari = posizioni.values()
+                .stream().map(Calciatore::getIdCalciatore).collect(Collectors.toList());
+
+        final Set<Calciatore> setTitolari = new HashSet<>(posizioni.values());
+        final List<Integer> idsPanchina = squadra.getCalciatori()
+                .stream().filter(c -> !setTitolari.contains(c))
+                .map(Calciatore::getIdCalciatore).collect(Collectors.toList());
+
+        new SwingWorker<Boolean, Void>() {
+            @Override protected Boolean doInBackground() {
+                FormazioneDAO dao = new FormazioneDAO();
+                return dao.salvaFormazioneCompleta(
+                        idSquadra,
+                        giornata,
+                        moduloScelto,
+                        idsTitolari,
+                        idsPanchina
+                );
             }
-            
-            @Override
-            protected void done() {
+
+            @Override protected void done() {
+                btnSalva.setEnabled(true);
                 try {
-                    boolean successo = get();
-                    if (successo) {
+                    if (get()) {
                         JOptionPane.showMessageDialog(VisualFormationDialog.this,
-                            "Formazione salvata con successo!",
-                            "Successo",
-                            JOptionPane.INFORMATION_MESSAGE);
+                                "Formazione salvata per la giornata " + giornata + "!",
+                                "Successo", JOptionPane.INFORMATION_MESSAGE);
                         dispose();
                     } else {
                         JOptionPane.showMessageDialog(VisualFormationDialog.this,
-                            "Errore durante il salvataggio.",
-                            "Errore",
-                            JOptionPane.ERROR_MESSAGE);
+                                "Errore durante il salvataggio.", "Errore",
+                                JOptionPane.ERROR_MESSAGE);
                     }
-                } catch (Exception ex) {
+                } catch (HeadlessException | InterruptedException | ExecutionException ex) {
                     JOptionPane.showMessageDialog(VisualFormationDialog.this,
-                        "Errore: " + ex.getMessage(),
-                        "Errore",
-                        JOptionPane.ERROR_MESSAGE);
+                            "Errore: " + ex.getMessage(), "Errore",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
+        }.execute();
+    }
+
+
+    /* -------------------- Util -------------------- */
+
+    private int[] parseModulo(String m) {
+        String[] p = m.split("-");
+        if (p.length != 3) return new int[]{4, 4, 2}; // fallback 4-4-2
+        return new int[]{ Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]) };
+    }
+
+    private Color ruoloColor(Calciatore.Ruolo r) {
+        return switch (r) {
+            case PORTIERE -> new Color(234, 179, 8);
+            case DIFENSORE -> new Color(59, 130, 246);
+            case CENTROCAMPISTA -> new Color(16, 185, 129);
+            case ATTACCANTE -> new Color(239, 68, 68);
+            default -> new Color(99, 102, 241);
         };
-        worker.execute();
     }
-    
-    private boolean salvaFormazioneDatabase() {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getInstance().getConnection();
-            conn.setAutoCommit(false);
-            
-            String modulo = (String) comboModulo.getSelectedItem();
-            int idFormazione = -1;
-            
-            // 1. Prima controlla se esiste già una formazione per questa squadra
-            String sqlCercaFormazione = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra = ?";
-            try (PreparedStatement stmtCerca = conn.prepareStatement(sqlCercaFormazione)) {
-                stmtCerca.setInt(1, squadra.getIdSquadraFantacalcio());
-                
-                try (ResultSet rs = stmtCerca.executeQuery()) {
-                    if (rs.next()) {
-                        // Formazione esistente - aggiorna
-                        idFormazione = rs.getInt("ID_Formazione");
-                        String sqlAggiornaFormazione = "UPDATE FORMAZIONE SET Modulo = ? WHERE ID_Formazione = ?";
-                        try (PreparedStatement stmtAggiorna = conn.prepareStatement(sqlAggiornaFormazione)) {
-                            stmtAggiorna.setString(1, modulo);
-                            stmtAggiorna.setInt(2, idFormazione);
-                            stmtAggiorna.executeUpdate();
-                        }
-                    } else {
-                        // Nuova formazione - inserisci
-                        String sqlNuovaFormazione = "INSERT INTO FORMAZIONE (Modulo, ID_Squadra) VALUES (?, ?)";
-                        try (PreparedStatement stmtNuova = conn.prepareStatement(sqlNuovaFormazione, Statement.RETURN_GENERATED_KEYS)) {
-                            stmtNuova.setString(1, modulo);
-                            stmtNuova.setInt(2, squadra.getIdSquadraFantacalcio());
-                            stmtNuova.executeUpdate();
-                            
-                            try (ResultSet generatedKeys = stmtNuova.getGeneratedKeys()) {
-                                if (generatedKeys.next()) {
-                                    idFormazione = generatedKeys.getInt(1);
-                                } else {
-                                    throw new SQLException("Impossibile ottenere ID formazione generato");
-                                }
-                            }
-                        }
-                    }
-                }
+
+    private JButton button(String text, Color bg, ActionListener al) {
+        JButton b = new JButton(text);
+        b.setBackground(bg);
+        b.setForeground(Color.WHITE);
+        b.setFocusPainted(false);
+        b.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.addActionListener(al);
+        return b;
+    }
+
+    /* -------------------- Pitch Panel (campo) -------------------- */
+
+    private static class PitchPanel extends JPanel {
+        private Rectangle fieldRect;
+
+        PitchPanel() {
+            setBackground(new Color(14, 98, 63));
+        }
+
+        Rectangle getFieldRect() { return fieldRect; }
+
+        @Override protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int w = getWidth(), h = getHeight();
+
+            // prato con bande
+            Paint grass = new GradientPaint(0, 0, new Color(15, 122, 74), 0, h, new Color(10, 85, 54));
+            g2.setPaint(grass);
+            g2.fillRect(0, 0, w, h);
+
+            // bande orizzontali
+            int stripe = 32;
+            g2.setColor(new Color(255,255,255,10));
+            for (int y=0; y<h; y+=stripe*2) {
+                g2.fillRect(0, y, w, stripe);
             }
-            
-            if (idFormazione == -1) {
-                throw new SQLException("Impossibile ottenere ID formazione valido");
+
+            // rettangolo campo in margine
+            int margin = 40;
+            int fw = w - margin*2;
+            int fh = h - margin*2;
+            int fx = margin;
+            int fy = margin;
+
+            // mantieni rapporto 105x68 circa
+            double target = 105.0/68.0;
+            double current = (double) fw / fh;
+            if (current > target) {
+                fw = (int) (fh * target);
+                fx = (w - fw)/2;
+            } else {
+                fh = (int) (fw / target);
+                fy = (h - fh)/2;
             }
-            
-            // 2. Pulisci le associazioni esistenti per questa formazione
-            String sqlPulisci = "DELETE FROM FORMANO WHERE ID_Formazione = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(sqlPulisci)) {
-                stmt.setInt(1, idFormazione);
-                int deleted = stmt.executeUpdate();
-                System.out.println("DEBUG: Cancellate " + deleted + " associazioni esistenti");
-            }
-            
-            // 3. Inserisci i titolari
-            String sqlTitolari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina) VALUES (?, ?, 'NO')";
-            try (PreparedStatement stmt = conn.prepareStatement(sqlTitolari)) {
-                for (Map.Entry<String, Calciatore> entry : posizioni.entrySet()) {
-                    Calciatore calciatore = entry.getValue();
-                    System.out.println("DEBUG: Inserisco titolare - ID calciatore: " + calciatore.getIdCalciatore() + 
-                                    " (" + calciatore.getNomeCompleto() + "), ID formazione: " + idFormazione);
-                    
-                    stmt.setInt(1, calciatore.getIdCalciatore());
-                    stmt.setInt(2, idFormazione);
-                    stmt.addBatch();
-                }
-                int[] risultatiTitolari = stmt.executeBatch();
-                System.out.println("DEBUG: Inseriti " + risultatiTitolari.length + " titolari");
-            }
-            
-            // 4. Aggiungi panchinari (restanti giocatori della squadra)
-            String sqlPanchinari = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina) VALUES (?, ?, 'SI')";
-            try (PreparedStatement stmt = conn.prepareStatement(sqlPanchinari)) {
-                int panchinariInseriti = 0;
-                
-                for (Calciatore calciatore : squadra.getCalciatori()) {
-                    // Se il calciatore non è tra i titolari, aggiungilo in panchina
-                    if (!posizioni.containsValue(calciatore)) {
-                        System.out.println("DEBUG: Inserisco panchinaro - ID calciatore: " + calciatore.getIdCalciatore() + 
-                                        " (" + calciatore.getNomeCompleto());
-                        
-                        stmt.setInt(1, calciatore.getIdCalciatore());
-                        stmt.setInt(2, idFormazione);
-                        stmt.addBatch();
-                        panchinariInseriti++;
-                    }
-                }
-                
-                if (panchinariInseriti > 0) {
-                    int[] risultatiPanchina = stmt.executeBatch();
-                    System.out.println("DEBUG: Inseriti " + risultatiPanchina.length + " panchinari");
-                }
-            }
-            
-            // 5. Associa la formazione alla giornata (tabella SCHIERAMENTO)
-            String sqlSchieramento = """
-                INSERT INTO SCHIERAMENTO (ID_Squadra, ID_Formazione) 
-                VALUES (?, ?) 
-                ON DUPLICATE KEY UPDATE ID_Formazione = VALUES(ID_Formazione)
-                """;
-            try (PreparedStatement stmt = conn.prepareStatement(sqlSchieramento)) {
-                stmt.setInt(1, squadra.getIdSquadraFantacalcio());
-                stmt.setInt(2, idFormazione);
-                stmt.setInt(3, giornataCorrente);
-                int updated = stmt.executeUpdate();
-                System.out.println("DEBUG: Schieramento aggiornato: " + updated + " righe modificate");
-            }
-            
-            conn.commit();
-            System.out.println("Formazione salvata con successo: " + posizioni.size() + " titolari per la giornata " + giornataCorrente);
-            return true;
-            
-        } catch (SQLException ex) {
-            try {
-                if (conn != null) conn.rollback();
-            } catch (SQLException rollbackEx) {
-                System.err.println("Errore rollback: " + rollbackEx.getMessage());
-            }
-            System.err.println("Errore salvataggio formazione: " + ex.getMessage());
-            ex.printStackTrace(); // Aggiungi questo per vedere lo stack trace completo
-            return false;
-        } finally {
-            try {
-                if (conn != null) conn.setAutoCommit(true);
-            } catch (SQLException ex) {
-                System.err.println("Errore ripristino autocommit: " + ex.getMessage());
-            }
+
+            fieldRect = new Rectangle(fx, fy, fw, fh);
+
+            // area di gioco (cornice)
+            g2.setColor(new Color(255, 255, 255, 190));
+            g2.setStroke(new BasicStroke(3f));
+            g2.drawRect(fx, fy, fw, fh);
+
+            // metà campo
+            g2.drawLine(fx + fw/2, fy, fx + fw/2, fy + fh);
+
+            // cerchio di centrocampo
+            g2.drawOval(fx + fw/2 - 60, fy + fh/2 - 60, 120, 120);
+
+            // aree di rigore e porte
+            // sinistra
+            g2.drawRect(fx, fy + (int)(fh*0.2), (int)(fw*0.18), (int)(fh*0.6));
+            g2.drawRect(fx, fy + (int)(fh*0.35), (int)(fw*0.08), (int)(fh*0.3));
+            // destra
+            g2.drawRect(fx + fw - (int)(fw*0.18), fy + (int)(fh*0.2), (int)(fw*0.18), (int)(fh*0.6));
+            g2.drawRect(fx + fw - (int)(fw*0.08), fy + (int)(fh*0.35), (int)(fw*0.08), (int)(fh*0.3));
+
+            g2.dispose();
+
+            // dimensiona preferito per permettere scroll se serve
+            setPreferredSize(new Dimension(Math.max(900, w), Math.max(600, h)));
         }
     }
-    
-    private void resetFormazione(ActionEvent e) {
-        int conferma = JOptionPane.showConfirmDialog(this,
-            "Sei sicuro di voler resettare la formazione?",
-            "Conferma Reset",
-            JOptionPane.YES_NO_OPTION);
-        
-        if (conferma == JOptionPane.YES_OPTION) {
-            posizioni.clear();
-            
-            // Reset bottoni
-            for (JButton btn : bottoniPosizioni.values()) {
-                btn.setText("+");
-                btn.setToolTipText("Aggiungi giocatore");
-            }
-            
-            updateSalvaButton();
-            campoPanel.repaint();
-        }
-    }
-    
-    private int[] parseModulo(String modulo) {
-        String[] parti = modulo.split("-");
-        int[] numeri = new int[3];
-        for (int i = 0; i < parti.length; i++) {
-            numeri[i] = Integer.parseInt(parti[i]);
-        }
-        return numeri;
-    }
-    
-    private void styleButton(JButton button, Color color) {
-        button.setBackground(color);
-        button.setForeground(Color.WHITE);
-        button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-    }
-    
-    /**
-     * Dialog interno per selezionare un giocatore per una posizione
-     */
-    private class PlayerSelectionDialog extends JDialog {
-        private Calciatore giocatoreSelezionato = null;
-        
-        public PlayerSelectionDialog(Window parent, List<Calciatore> giocatori, Calciatore.Ruolo ruolo) {
-            super(parent, "Seleziona " + ruolo.name(), ModalityType.APPLICATION_MODAL);
-            setSize(400, 300);
+
+    /* -------------------- Picker giocatori -------------------- */
+
+    private static class PlayerPicker extends JDialog {
+        private Calciatore selected;
+
+        PlayerPicker(Window parent, Calciatore.Ruolo ruolo, List<Calciatore> candidates) {
+            super(parent, "Scegli " + ruolo.name(), ModalityType.APPLICATION_MODAL);
+            setLayout(new BorderLayout());
+            setMinimumSize(new Dimension(420, 520));
             setLocationRelativeTo(parent);
-            
-            JPanel panel = new JPanel(new BorderLayout());
-            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            
+
+            JPanel top = new JPanel(new BorderLayout(8, 8));
+            top.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
+            JLabel lbl = new JLabel("Filtra per nome/cognome:");
+            JTextField search = new JTextField();
+            top.add(lbl, BorderLayout.WEST);
+            top.add(search, BorderLayout.CENTER);
+
             DefaultListModel<Calciatore> model = new DefaultListModel<>();
-            for (Calciatore c : giocatori) {
-                model.addElement(c);
-            }
-            
+            candidates.forEach(model::addElement);
+
             JList<Calciatore> list = new JList<>(model);
-            list.setCellRenderer(new CalciatoreListCellRenderer());
             list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-            
-            JScrollPane scrollPane = new JScrollPane(list);
-            
-            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            JButton btnSeleziona = new JButton("Seleziona");
-            JButton btnAnnulla = new JButton("Annulla");
-            
-            buttonPanel.add(btnSeleziona);
-            buttonPanel.add(btnAnnulla);
-            
-            btnSeleziona.addActionListener(e -> {
-                giocatoreSelezionato = list.getSelectedValue();
+            list.setCellRenderer(new DefaultListCellRenderer(){
+                @Override public Component getListCellRendererComponent(
+                        JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                    Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                    Calciatore cal = (Calciatore) value;
+                    setText(cal.getNomeCompleto());
+                    return c;
+                }
+            });
+
+            JScrollPane sp = new JScrollPane(list);
+            sp.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton ok = new JButton("Seleziona");
+            JButton cancel = new JButton("Annulla");
+            bottom.add(ok); bottom.add(cancel);
+
+            add(top, BorderLayout.NORTH);
+            add(sp, BorderLayout.CENTER);
+            add(bottom, BorderLayout.SOUTH);
+
+            // filtro live
+            search.getDocument().addDocumentListener(new DocumentListener() {
+                private void filter() {
+                    String q = search.getText().trim().toLowerCase();
+                    model.clear();
+                    for (Calciatore c : candidates) {
+                        String s = (c.getNomeCompleto() + " " + c.getRuolo().name()).toLowerCase();
+                        if (s.contains(q)) model.addElement(c);
+                    }
+                }
+                @Override public void insertUpdate(DocumentEvent e) { filter(); }
+                @Override public void removeUpdate(DocumentEvent e) { filter(); }
+                @Override public void changedUpdate(DocumentEvent e) { filter(); }
+            });
+
+            ok.addActionListener(e -> {
+                selected = list.getSelectedValue();
                 dispose();
             });
-            
-            btnAnnulla.addActionListener(e -> dispose());
-            
-            panel.add(scrollPane, BorderLayout.CENTER);
-            panel.add(buttonPanel, BorderLayout.SOUTH);
-            
-            setContentPane(panel);
+            cancel.addActionListener(e -> dispose());
         }
-        
-        public Calciatore getGiocatoreSelezionato() {
-            return giocatoreSelezionato;
-        }
-    }
-    
-    /**
-     * Renderer personalizzato per visualizzare i giocatori nelle liste
-     */
-    private static class CalciatoreListCellRenderer extends JLabel implements javax.swing.ListCellRenderer<Calciatore> {
-        public CalciatoreListCellRenderer() {
-            setOpaque(true);
-            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        }
-        
-        @Override
-        public Component getListCellRendererComponent(JList<? extends Calciatore> list,
-                Calciatore calciatore, int index, boolean isSelected, boolean cellHasFocus) {
-            
-            setText(calciatore.getNomeCompleto() + " (" + calciatore.getCosto() + "€)");
-            
-            if (isSelected) {
-                setBackground(list.getSelectionBackground());
-                setForeground(list.getSelectionForeground());
-            } else {
-                setBackground(list.getBackground());
-                setForeground(list.getForeground());
-            }
-            
-            return this;
-        }
+
+        Calciatore getSelected() { return selected; }
     }
 }

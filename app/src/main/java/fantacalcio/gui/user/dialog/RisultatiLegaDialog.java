@@ -8,6 +8,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Window;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -32,8 +33,9 @@ public class RisultatiLegaDialog extends JDialog {
     
     private final Lega lega;
     private final ScontroLegaDAO scontroDAO;
-    private int giornataCorrente;
-    
+    private final int giornataCorrente;
+    private boolean dblClickHooked = false;
+
     // Componenti GUI
     private JComboBox<Integer> comboGiornata;
     private JTable tabellaRisultati;
@@ -76,13 +78,9 @@ public class RisultatiLegaDialog extends JDialog {
         comboGiornata.setSelectedItem(giornataCorrente);
         comboGiornata.addActionListener(e -> loadRisultati());
         
-        // Tabella risultati
-        String[] colonne = {"Partita", "Risultato", "Stato", "Data"};
+        String[] colonne = {"#","Partita","Risultato","Stato","Data"};
         modelTabella = new DefaultTableModel(colonne, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
+            @Override public boolean isCellEditable(int r,int c){ return false; }
         };
         
         tabellaRisultati = new JTable(modelTabella);
@@ -90,58 +88,62 @@ public class RisultatiLegaDialog extends JDialog {
         tabellaRisultati.getTableHeader().setBackground(new Color(63, 81, 181));
         tabellaRisultati.getTableHeader().setForeground(Color.WHITE);
         tabellaRisultati.getTableHeader().setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        
+        tabellaRisultati.removeColumn(tabellaRisultati.getColumnModel().getColumn(0));
         // Larghezza colonne
         tabellaRisultati.getColumnModel().getColumn(0).setPreferredWidth(300); // Partita
         tabellaRisultati.getColumnModel().getColumn(1).setPreferredWidth(120); // Risultato
         tabellaRisultati.getColumnModel().getColumn(2).setPreferredWidth(100); // Stato
         tabellaRisultati.getColumnModel().getColumn(3).setPreferredWidth(150); // Data
+        if (!dblClickHooked) {
+            dblClickHooked = true;
+            tabellaRisultati.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (e.getClickCount() == 2) {
+                        int viewRow = tabellaRisultati.getSelectedRow();
+                        if (viewRow >= 0) { 
+                            int modelRow = tabellaRisultati.convertRowIndexToModel(viewRow);
+                            int idScontro = (Integer) modelTabella.getValueAt(modelRow, 0);
+                            apriDettaglioScontro(idScontro);
+                        }
+                    }
+                }
+            });
+        }
     }
     
     private void setupLayout() {
-        // Header panel
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 10, 15));
         headerPanel.add(lblTitolo, BorderLayout.CENTER);
-        
-        // Controls panel
+
         JPanel controlsPanel = new JPanel(new FlowLayout());
         controlsPanel.add(new JLabel("Giornata:"));
         controlsPanel.add(comboGiornata);
-        
         JButton btnAggiorna = new JButton("🔄 Aggiorna");
         styleButton(btnAggiorna, new Color(158, 158, 158));
         btnAggiorna.addActionListener(e -> loadRisultati());
         controlsPanel.add(Box.createHorizontalStrut(20));
         controlsPanel.add(btnAggiorna);
-        
-        // Table panel
+
         JScrollPane scrollPane = new JScrollPane(tabellaRisultati);
         scrollPane.setPreferredSize(new Dimension(750, 400));
         scrollPane.setBorder(BorderFactory.createTitledBorder("Partite della Giornata"));
-        
-        // Bottom panel
+
         JPanel bottomPanel = new JPanel(new FlowLayout());
         JButton btnChiudi = new JButton("Chiudi");
         styleButton(btnChiudi, new Color(244, 67, 54));
         btnChiudi.addActionListener(e -> dispose());
         bottomPanel.add(btnChiudi);
-        
-        // Layout finale
-        add(headerPanel, BorderLayout.NORTH);
-        add(controlsPanel, BorderLayout.CENTER);
-        add(scrollPane, BorderLayout.CENTER);
-        add(bottomPanel, BorderLayout.SOUTH);
-        
-        // Correggi layout
+
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.add(controlsPanel, BorderLayout.NORTH);
         centerPanel.add(scrollPane, BorderLayout.CENTER);
-        
+
         add(headerPanel, BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
     }
+
     
     private void loadRisultati() {
         Integer giornataSelezionata = (Integer) comboGiornata.getSelectedItem();
@@ -150,7 +152,7 @@ public class RisultatiLegaDialog extends JDialog {
         SwingWorker<List<ScontroLega>, Void> worker = new SwingWorker<List<ScontroLega>, Void>() {
             @Override
             protected List<ScontroLega> doInBackground() throws Exception {
-                return scontroDAO.trovaSccontriGiornata(lega.getIdLega(), giornataSelezionata);
+                return scontroDAO.trovaScontriGiornata(lega.getIdLega(), giornataSelezionata);
             }
             
             @Override
@@ -158,7 +160,7 @@ public class RisultatiLegaDialog extends JDialog {
                 try {
                     List<ScontroLega> scontri = get();
                     updateTable(scontri, giornataSelezionata);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException e) {
                     System.err.println("Errore caricamento risultati: " + e.getMessage());
                 }
             }
@@ -169,24 +171,40 @@ public class RisultatiLegaDialog extends JDialog {
     
     private void updateTable(List<ScontroLega> scontri, int giornata) {
         modelTabella.setRowCount(0);
-        
-        for (ScontroLega scontro : scontri) {
-            String partita = scontro.getNomeSquadra1() + " vs " + scontro.getNomeSquadra2();
-            String risultato = scontro.getRisultato();
-            String stato = scontro.getStatoEmoji() + " " + scontro.getDescrizioneStato();
-            String data = scontro.getDataInizio() != null ? 
-                scontro.getDataInizio().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")) : 
-                "Da programmare";
-            
-            Object[] riga = {partita, risultato, stato, data};
-            modelTabella.addRow(riga);
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm");
+
+        for (ScontroLega s : scontri) {
+            String partita   = s.getNomeSquadra1() + " vs " + s.getNomeSquadra2();
+            String risultato = (s.getRisultato() != null && !s.getRisultato().isBlank()) ? s.getRisultato() : "—";
+            String stato = s.getStatoEmoji() + " " + s.getDescrizioneStato();
+            String data = (s.getDataInizio() != null) ? s.getDataInizio().format(fmt) : "Da programmare";
+
+            // 0 = ID_Scontro (COLUMNA NASCOSTA)
+            modelTabella.addRow(new Object[]{
+                s.getIdScontro(), partita, risultato, stato, data
+            });
         }
-        
-        // Aggiorna titolo con numero partite
-        lblTitolo.setText("📊 Risultati Lega: " + lega.getNome() + 
-                         " - Giornata " + giornata + " (" + scontri.size() + " partite)");
+
+        lblTitolo.setText("📊 Risultati Lega: " + lega.getNome()
+                + " - Giornata " + giornata + " (" + scontri.size() + " partite)");
     }
-    
+
+
+    private void apriDettaglioScontro(int idScontro) {
+        scontroDAO.trovaScontroById(idScontro).ifPresentOrElse(s -> {
+            new DettaglioScontroDialog(
+                this,
+                s.getNomeSquadra1(),  s.getIdFormazione1(),
+                s.getNomeSquadra2(),  s.getIdFormazione2()
+            ).setVisible(true);
+        }, () -> {
+            javax.swing.JOptionPane.showMessageDialog(
+                this, "Scontro non trovato (ID=" + idScontro + ")", "Errore",
+                javax.swing.JOptionPane.ERROR_MESSAGE
+            );
+        });
+    }
+
     private void styleButton(JButton button, Color color) {
         button.setBackground(color);
         button.setForeground(Color.WHITE);
