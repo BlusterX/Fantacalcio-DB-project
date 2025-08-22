@@ -92,6 +92,81 @@ public class SquadraFantacalcioDAO {
         }
     }
 
+    // DAO: fantacalcio.dao.SquadraFantacalcioDAO
+
+    public List<Integer> trovaIdSquadreCompletePerLega(int idLega) {
+        String sql = """
+            SELECT s.ID_Squadra_Fantacalcio
+            FROM SQUADRA_FANTACALCIO s
+            WHERE s.ID_Lega = ? AND s.Completata = TRUE
+        """;
+        List<Integer> out = new ArrayList<>();
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(rs.getInt(1));
+            }
+        } catch (SQLException e) {
+            System.err.println("trovaIdSquadreCompletePerLega: " + e.getMessage());
+        }
+        return out;
+    }
+
+    /** DTO leggero per la tabella del pannello */
+    public static class SquadraLegaInfo {
+        public final String nomeSquadra;
+        public final int numeroGiocatori;
+        public final int budgetSpeso;
+        public final boolean completata;
+        public final String proprietario;
+        public SquadraLegaInfo(String nome, int giocatori, int budget, boolean completa, String owner) {
+            this.nomeSquadra = nome;
+            this.numeroGiocatori = giocatori;
+            this.budgetSpeso = budget;
+            this.completata = completa;
+            this.proprietario = owner;
+        }
+    }
+
+    /** Righe per la tabella “Squadre della Lega” */
+    public List<SquadraLegaInfo> trovaSquadreInfoPerLega(int idLega) {
+        String sql = """
+            SELECT
+                s.Nome,
+                (s.Budget_totale - s.Budget_rimanente) AS Budget_Speso,
+                s.Completata,
+                u.Nickname,
+                (SELECT COUNT(*)
+                FROM COMPOSIZIONE c
+                WHERE c.ID_Squadra_Fantacalcio = s.ID_Squadra_Fantacalcio) AS Num_Giocatori
+            FROM SQUADRA_FANTACALCIO s
+            JOIN UTENTE u ON u.ID_Utente = s.ID_Utente
+            WHERE s.ID_Lega = ?
+            ORDER BY s.Completata DESC, s.Nome
+        """;
+        List<SquadraLegaInfo> out = new ArrayList<>();
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new SquadraLegaInfo(
+                        rs.getString("Nome"),
+                        rs.getInt("Num_Giocatori"),
+                        rs.getInt("Budget_Speso"),
+                        rs.getBoolean("Completata"),
+                        rs.getString("Nickname")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("trovaSquadreInfoPerLega: " + e.getMessage());
+        }
+        return out;
+    }
+
+
     /**
      * Collega/riassegna la squadra a una lega aggiornando il campo ID_Lega.
      */

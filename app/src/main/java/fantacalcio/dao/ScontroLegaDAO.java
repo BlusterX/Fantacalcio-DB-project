@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import fantacalcio.model.ScontroLega;
 import fantacalcio.util.DatabaseConnection;
@@ -43,6 +44,152 @@ public class ScontroLegaDAO {
         }
         return ids;
     }
+
+    // ScontroLegaDAO.java
+    public List<ScontroLega> trovaScontriGiornata(int idLega, int giornata) {
+        String sql = """
+            SELECT s.ID_Scontro, s.ID_Formazione1, s.ID_Formazione2,
+                s.Risultato, s.Stato, s.Data_inizio,
+                sf1.Nome AS NomeSquadra1, sf2.Nome AS NomeSquadra2
+            FROM SCONTRO s
+            JOIN FORMAZIONE f1 ON f1.ID_Formazione = s.ID_Formazione1
+            JOIN FORMAZIONE f2 ON f2.ID_Formazione = s.ID_Formazione2
+            JOIN SQUADRA_FANTACALCIO sf1 ON sf1.ID_Squadra_Fantacalcio = f1.ID_Squadra_Fantacalcio
+            JOIN SQUADRA_FANTACALCIO sf2 ON sf2.ID_Squadra_Fantacalcio = f2.ID_Squadra_Fantacalcio
+            WHERE s.ID_Lega = ? AND s.Numero_Giornata = ?
+            ORDER BY s.ID_Scontro
+            """;
+
+        List<ScontroLega> out = new ArrayList<>();
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            ps.setInt(2, giornata);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ScontroLega s = new ScontroLega();
+                    s.setIdScontro(rs.getInt("ID_Scontro"));
+                    s.setIdFormazione1(rs.getInt("ID_Formazione1"));
+                    s.setIdFormazione2(rs.getInt("ID_Formazione2"));
+                    s.setRisultato(rs.getString("Risultato"));
+                    s.setStato(parseStato(rs.getString("Stato")));
+                    Timestamp ts = rs.getTimestamp("Data_inizio");
+                    s.setDataInizio(ts != null ? ts.toLocalDateTime() : null);
+                    s.setNomeSquadra1(rs.getString("NomeSquadra1"));
+                    s.setNomeSquadra2(rs.getString("NomeSquadra2"));
+                    out.add(s);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore trovaScontriGiornata: " + e.getMessage());
+        }
+        return out;
+    }
+    
+    /** true se ogni squadra COMPLETATA della lega ha una formazione con 11 titolari per la giornata indicata */
+    public boolean tutteFormazioniPresentiPerGiornata(int idLega, int giornata) {
+        final String sqlPartecipanti = """
+            SELECT COUNT(*) 
+            FROM SQUADRA_FANTACALCIO 
+            WHERE ID_Lega = ? AND Completata = TRUE
+        """;
+        final String sqlConFormazione = """
+            SELECT COUNT(DISTINCT f.ID_Squadra_Fantacalcio)
+            FROM FORMAZIONE f
+            JOIN SQUADRA_FANTACALCIO s ON s.ID_Squadra_Fantacalcio = f.ID_Squadra_Fantacalcio
+            JOIN TITOLARI t ON t.ID_Formazione = f.ID_Formazione
+            WHERE s.ID_Lega = ? AND f.Numero_Giornata = ?
+            GROUP BY f.ID_Formazione
+            HAVING COUNT(t.ID_Calciatore) = 11
+        """;
+
+        int partecipanti = 0, conFormazione = 0;
+        try (var c = dbConnection.getConnection()) {
+            try (var ps = c.prepareStatement(sqlPartecipanti)) {
+                ps.setInt(1, idLega);
+                try (var rs = ps.executeQuery()) {
+                    if (rs.next()) partecipanti = rs.getInt(1);
+                }
+            }
+            try (var ps = c.prepareStatement(sqlConFormazione)) {
+                ps.setInt(1, idLega);
+                ps.setInt(2, giornata);
+                try (var rs = ps.executeQuery()) {
+                    // somma quante FORM. distinte rispettano i 11 titolari
+                    while (rs.next()) conFormazione++;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore controllo formazioni: " + e.getMessage());
+        }
+        return partecipanti > 0 && conFormazione == partecipanti;
+    }
+
+
+    /** comodo per aprire il dettaglio */
+    public Optional<ScontroLega> trovaScontroById(int idScontro) {
+        String sql = """
+            SELECT s.ID_Scontro, s.ID_Formazione1, s.ID_Formazione2, s.Risultato, s.Stato, s.Data_inizio,
+                sf1.Nome AS NomeSquadra1, sf2.Nome AS NomeSquadra2
+            FROM SCONTRO s
+            JOIN FORMAZIONE f1 ON f1.ID_Formazione = s.ID_Formazione1
+            JOIN FORMAZIONE f2 ON f2.ID_Formazione = s.ID_Formazione2
+            JOIN SQUADRA_FANTACALCIO sf1 ON sf1.ID_Squadra_Fantacalcio = f1.ID_Squadra_Fantacalcio
+            JOIN SQUADRA_FANTACALCIO sf2 ON sf2.ID_Squadra_Fantacalcio = f2.ID_Squadra_Fantacalcio
+            WHERE s.ID_Scontro = ?
+            """;
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idScontro);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    ScontroLega s = new ScontroLega();
+                    s.setIdScontro(rs.getInt("ID_Scontro"));
+                    s.setIdFormazione1(rs.getInt("ID_Formazione1"));
+                    s.setIdFormazione2(rs.getInt("ID_Formazione2"));
+                    s.setRisultato(rs.getString("Risultato"));
+                    s.setStato(parseStato(rs.getString("Stato")));
+                    Timestamp ts = rs.getTimestamp("Data_inizio");
+                    s.setDataInizio(ts != null ? ts.toLocalDateTime() : null);
+                    s.setNomeSquadra1(rs.getString("NomeSquadra1"));
+                    s.setNomeSquadra2(rs.getString("NomeSquadra2"));
+                    return Optional.of(s);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore trovaScontroById: " + e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    private fantacalcio.model.ScontroLega.StatoScontro parseStato(String db) {
+        if (db == null) return fantacalcio.model.ScontroLega.StatoScontro.PROGRAMMATO;
+        try { return fantacalcio.model.ScontroLega.StatoScontro.valueOf(db.trim().toUpperCase()); }
+        catch (Exception e) { return fantacalcio.model.ScontroLega.StatoScontro.PROGRAMMATO; }
+    }
+
+
+    public java.time.LocalDateTime getProssimaDataInizio(int idLega) {
+        final String sql = """
+            SELECT MIN(Data_inizio)
+            FROM SCONTRO
+            WHERE ID_Lega = ? AND Stato = 'PROGRAMMATO'
+        """;
+        try (var c = dbConnection.getConnection();
+            var ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (var rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    java.sql.Timestamp ts = rs.getTimestamp(1);
+                    return (ts != null) ? ts.toLocalDateTime() : null;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore getProssimaDataInizio: " + e.getMessage());
+        }
+        return null;
+    }
+
 
     /**
      * Crea (se mancante) la FORMAZIONE “scheletro” per una squadra/giornata.
@@ -236,12 +383,15 @@ public class ScontroLegaDAO {
      */
     public boolean avviaLegaManualmente(int idLega) {
         if (!verificaAvvioLega(idLega)) return false;
-
+        if (!tutteFormazioniPresentiPerGiornata(idLega, 1)) {
+            System.err.println("Non tutte le squadre hanno consegnato la formazione della 1ª giornata.");
+            return false;
+        }
         List<Integer> squadreIds = getSquadreCompleteLega(idLega);
         if (!generaCalendarioCompleto(idLega, squadreIds)) return false;
-
         return avviaLega(idLega);
     }
+
 
     /**
      * Avvia la lega: imposta Stato in LEGA e programma la prima giornata in SCONTRO.
@@ -380,50 +530,6 @@ public class ScontroLegaDAO {
             System.err.println("Errore programmazione prossima giornata: " + e.getMessage());
             return false;
         }
-    }
-
-    /**
-     * Elenco scontri per giornata (mappa sui campi del model).
-     */
-    public List<ScontroLega> trovaScontriGiornata(int idLega, int giornata) {
-        List<ScontroLega> out = new ArrayList<>();
-        final String sql = """
-            SELECT s.ID_Scontro, s.ID_Lega, s.ID_Formazione1, s.ID_Formazione2, s.Numero_Giornata,
-                   s.Risultato, s.Stato, s.Data_inizio,
-                   sq1.Nome AS Nome_Squadra_1, sq2.Nome AS Nome_Squadra_2
-            FROM SCONTRO s
-            JOIN FORMAZIONE f1 ON s.ID_Formazione1 = f1.ID_Formazione
-            JOIN FORMAZIONE f2 ON s.ID_Formazione2 = f2.ID_Formazione
-            JOIN SQUADRA_FANTACALCIO sq1 ON f1.ID_Squadra_Fantacalcio = sq1.ID_Squadra_Fantacalcio
-            JOIN SQUADRA_FANTACALCIO sq2 ON f2.ID_Squadra_Fantacalcio = sq2.ID_Squadra_Fantacalcio
-            WHERE s.ID_Lega = ? AND s.Numero_Giornata = ?
-            ORDER BY s.ID_Scontro
-        """;
-        try (Connection c = dbConnection.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, idLega);
-            ps.setInt(2, giornata);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    ScontroLega s = new ScontroLega();
-                    s.setIdScontro(rs.getInt("ID_Scontro"));
-                    s.setIdLega(rs.getInt("ID_Lega"));
-                    s.setIdFormazione1(rs.getInt("ID_Formazione1"));
-                    s.setIdFormazione2(rs.getInt("ID_Formazione2"));
-                    s.setGiornata(rs.getInt("Numero_Giornata"));
-                    s.setRisultato(rs.getString("Risultato"));
-                    s.setStato(ScontroLega.StatoScontro.valueOf(rs.getString("Stato")));
-                    Timestamp ts = rs.getTimestamp("Data_inizio");
-                    if (ts != null) s.setDataInizio(ts.toLocalDateTime());
-                    s.setNomeSquadra1(rs.getString("Nome_Squadra_1"));
-                    s.setNomeSquadra2(rs.getString("Nome_Squadra_2"));
-                    out.add(s);
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Errore ricerca scontri giornata: " + e.getMessage());
-        }
-        return out;
     }
 
     /**
