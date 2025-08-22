@@ -68,7 +68,8 @@ public class CreateTeamPanel extends JPanel {
     private JComboBox<Calciatore.Ruolo> comboFiltroRuolo;
     private JComboBox<String> comboFiltroSquadra;
     private JSlider sliderCosto;
-    
+    private final Integer campionatoFilter;
+
     // Panel squadra in costruzione
     private JPanel squadraPanel;
     private JLabel lblBudgetRimanente, lblGiocatoriTotali;
@@ -80,16 +81,21 @@ public class CreateTeamPanel extends JPanel {
     // Cache dei calciatori per evitare ricaricamenti
     private List<CalciatoreConSquadra> calciatori;
     
-    public CreateTeamPanel(UserMainFrame parentFrame, Utente utente, int idLega) {
+    public CreateTeamPanel(UserMainFrame parentFrame, Utente utente, int idLega, Integer campionatoFilter) {
         this.parentFrame = parentFrame;
         this.utenteCorrente = utente;
         this.idLega = idLega;
         this.squadraDAO = new SquadraFantacalcioDAO();
         this.calciatoreDAO = new CalciatoreDAO();
-        
+        this.campionatoFilter = (campionatoFilter != null) ? campionatoFilter : findCampionatoByLega(idLega);
+
         initializeComponents();
         setupLayout();
         refreshData();
+    }
+
+    public CreateTeamPanel(UserMainFrame parentFrame, Utente utente, int idLega) {
+        this(parentFrame, utente, idLega, null);
     }
     
     private void initializeComponents() {
@@ -103,6 +109,20 @@ public class CreateTeamPanel extends JPanel {
         
         // Inizializza squadra vuota
         resetSquadra();
+    }
+
+    private Integer findCampionatoByLega(int idLega) {
+        final String sql = "SELECT ID_Campionato FROM LEGA WHERE ID_Lega = ?";
+        try (var conn = fantacalcio.util.DatabaseConnection.getInstance().getConnection();
+            var ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (var rs = ps.executeQuery()) {
+                if (rs.next()) return (Integer) rs.getObject("ID_Campionato");
+            }
+        } catch (Exception e) {
+            System.err.println("findCampionatoByLega: " + e.getMessage());
+        }
+        return null; // fallback: nessun filtro
     }
     
     private void createSquadraCreationPanel() {
@@ -355,8 +375,13 @@ public class CreateTeamPanel extends JPanel {
     public void refreshData() {
         SwingWorker<List<CalciatoreConSquadra>, Void> worker = new SwingWorker<List<CalciatoreConSquadra>, Void>() {
             @Override
-            protected List<CalciatoreConSquadra> doInBackground() throws Exception {
-                return calciatoreDAO.trovaTuttiICalciatoriConSquadra();
+            protected List<CalciatoreConSquadra> doInBackground() {
+                if (campionatoFilter != null) {
+                    return calciatoreDAO.trovaTuttiICalciatoriConSquadraPerCampionato(campionatoFilter);
+                } else {
+                    // fallback se la lega non avesse un campionato valorizzato
+                    return calciatoreDAO.trovaTuttiICalciatoriConSquadra();
+                }
             }
             
             @Override
@@ -493,11 +518,9 @@ public class CreateTeamPanel extends JPanel {
                     utenteCorrente.getIdUtente(), 
                     idLega
                 );
-                
                 if (!squadraCreata) {
                     return false;
                 }
-                
                 // Aggiungi tutti i calciatori alla squadra
                 for (Calciatore calciatore : squadraInCostruzione.getCalciatori()) {
                     if (!squadraDAO.aggiungiCalciatoreAllaSquadra(
@@ -507,7 +530,6 @@ public class CreateTeamPanel extends JPanel {
                         return false;
                     }
                 }
-                
                 return true;
             }
             

@@ -28,6 +28,7 @@ import fantacalcio.gui.user.panels.LeagueDetailPanel;
 import fantacalcio.gui.user.panels.ManageTeamPanel;
 import fantacalcio.gui.user.panels.UserDashboardPanel;
 import fantacalcio.model.Lega;
+import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
 
 public class UserMainFrame extends JFrame {
@@ -90,6 +91,7 @@ public class UserMainFrame extends JFrame {
         menuBar.add(menuAiuto);
         setJMenuBar(menuBar);
     }
+
     private void createTopPanel() {
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(new Color(245, 247, 250));
@@ -149,6 +151,57 @@ public class UserMainFrame extends JFrame {
         });
     }
 
+    public void openCreateTeam(Lega lega) {
+        inLeagueDetail = true;
+        mainContentPanel.removeAll();
+
+        final Lega legaRef = lega;
+
+        CreateTeamPanel panel = new CreateTeamPanel(this, utenteCorrente, legaRef.getIdLega()) {
+            @Override
+            protected void onTeamCreatedSuccess(SquadraFantacalcio squadraCreata) {
+                super.onTeamCreatedSuccess(squadraCreata);
+                openLeagueDetail(legaRef);
+            }
+        };
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+
+        // Header come in openLeagueDetail
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        headerPanel.setBackground(new Color(245, 247, 250));
+
+        JButton btnBack = new JButton("← Indietro");
+        btnBack.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        btnBack.setFocusPainted(false);
+        btnBack.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnBack.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(210, 214, 219)),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        btnBack.setBackground(Color.WHITE);
+        btnBack.addActionListener(e -> backToMainView());
+
+        JLabel title = new JLabel("Crea squadra – " + legaRef.getNome() + " (" + legaRef.getCodiceAccesso() + ")");
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        title.setForeground(new Color(33, 37, 41));
+
+        headerPanel.add(btnBack, BorderLayout.WEST);
+        headerPanel.add(title, BorderLayout.CENTER);
+
+        wrapper.add(headerPanel, BorderLayout.NORTH);
+        wrapper.add(panel, BorderLayout.CENTER);
+
+        mainContentPanel.add(wrapper, BorderLayout.CENTER);
+        mainContentPanel.revalidate();
+        mainContentPanel.repaint();
+
+        setTitle("FantaCalcio - " + utenteCorrente.getNickname() + " - Crea squadra");
+    }
+
+
+
     public void openLeagueDetail(Lega lega) {
         inLeagueDetail = true;
         mainContentPanel.removeAll();
@@ -168,7 +221,7 @@ public class UserMainFrame extends JFrame {
         btnBack.setBackground(Color.WHITE);
         btnBack.addActionListener(e -> backToMainView());
 
-        JLabel leagueTitle = new JLabel(lega.getNome() + " (" + lega.getCodiceAccesso() + ")");
+        JLabel leagueTitle = new JLabel("  " + lega.getNome() + " (" + lega.getCodiceAccesso() + ")");
         leagueTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         leagueTitle.setForeground(new Color(33, 37, 41));
         headerPanel.add(btnBack, BorderLayout.WEST);
