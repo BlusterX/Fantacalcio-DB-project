@@ -3,74 +3,160 @@ package fantacalcio.gui.user.dialog;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Window;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
 
 import fantacalcio.dao.FormazioneDAO;
+import fantacalcio.dao.PunteggioGiocatoreDAO;
+import fantacalcio.dao.ScontroLegaDAO;
+import fantacalcio.dao.VotoGiornataDAO;
 import fantacalcio.model.Calciatore;
+import fantacalcio.model.PunteggioGiocatore;
+import fantacalcio.model.ScontroLega;
+import fantacalcio.model.VotoGiornata;
 
 public class DettaglioScontroDialog extends JDialog {
-    public DettaglioScontroDialog(Window parent,
-                                  String nome1, int idForm1,
-                                  String nome2, int idForm2) {
-        super(parent, "Formazioni: " + nome1 + " vs " + nome2, ModalityType.APPLICATION_MODAL);
-        setLayout(new BorderLayout());
-        setMinimumSize(new Dimension(700, 500));
 
-        FormazioneDAO fdao = new FormazioneDAO();
-        var f1 = fdao.getFormazioneById(idForm1);
-        var f2 = fdao.getFormazioneById(idForm2);
+    private static final int BM_GOL           = 1;
+    private static final int BM_ASSIST        = 2;
+    private static final int BM_AMMONIZIONE   = 3;
+    private static final int BM_ESPULSIONE    = 4;
+    private static final int BM_IMBATTIBILITA = 5;
 
-        String modulo1 = (f1 != null && f1.getModulo()!=null) ? f1.getModulo() : "—";
-        String modulo2 = (f2 != null && f2.getModulo()!=null) ? f2.getModulo() : "—";
+    private final FormazioneDAO formazioneDAO = new FormazioneDAO();
+    private final VotoGiornataDAO votoDAO = new VotoGiornataDAO();
+    private final PunteggioGiocatoreDAO eventiDAO = new PunteggioGiocatoreDAO();
 
-        java.util.List<Calciatore> t1 = fdao.trovaTitolari(idForm1);
-        java.util.List<Calciatore> p1 = fdao.trovaPanchinari(idForm1);
-        java.util.List<Calciatore> t2 = fdao.trovaTitolari(idForm2);
-        java.util.List<Calciatore> p2 = fdao.trovaPanchinari(idForm2);
+    public DettaglioScontroDialog(Window parent, int idScontro, int giornata) {
+        super(parent, "Dettaglio scontro", ModalityType.APPLICATION_MODAL);
+        setLayout(new BorderLayout(8,8));
+        setMinimumSize(new Dimension(1300, 600));
 
-        JPanel left  = panelFormazione(nome1, modulo1, t1, p1);
-        JPanel right = panelFormazione(nome2, modulo2, t2, p2);
+        ScontroLegaDAO sdao = new ScontroLegaDAO();
+        var opt = sdao.trovaScontroById(idScontro);
+        if (opt.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Scontro non trovato", "Errore", JOptionPane.ERROR_MESSAGE);
+            dispose(); return;
+        }
+        ScontroLega s = opt.get();
 
-        JPanel center = new JPanel(new GridLayout(1,2,12,0));
-        center.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
-        center.add(left); center.add(right);
+        JLabel title = new JLabel(s.getNomeIncontro() + " - Giornata " + giornata, JLabel.CENTER);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
+        add(title, BorderLayout.NORTH);
+
+        JPanel center = new JPanel(new GridLayout(1,2,8,0));
+        center.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        center.add(buildTablePanel(s.getNomeSquadra1(), s.getIdFormazione1(), giornata));
+        center.add(buildTablePanel(s.getNomeSquadra2(), s.getIdFormazione2(), giornata));
+        add(center, BorderLayout.CENTER);
 
         JButton chiudi = new JButton("Chiudi");
         chiudi.addActionListener(e -> dispose());
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         south.add(chiudi);
-
-        add(center, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
+
         setLocationRelativeTo(parent);
         pack();
     }
 
-    private JPanel panelFormazione(String nome, String modulo, List<Calciatore> tit, List<Calciatore> pan) {
+    private static int ruoloRank(fantacalcio.model.Calciatore.Ruolo r) {
+        return switch (r) {
+            case PORTIERE -> 0;
+            case DIFENSORE -> 1;
+            case CENTROCAMPISTA -> 2;
+            case ATTACCANTE -> 3;
+        };
+    }
+
+    private JPanel buildTablePanel(String nomeSquadra, int idFormazione, int giornata) {
         JPanel p = new JPanel(new BorderLayout(6,6));
-        p.setBorder(BorderFactory.createTitledBorder(nome + "  •  " + modulo));
+        p.setBorder(BorderFactory.createTitledBorder(nomeSquadra));
 
-        JTextArea area = new JTextArea();
-        area.setEditable(false);
-        StringBuilder sb = new StringBuilder();
-        sb.append("⭐ Titolari (").append(tit.size()).append(")\n");
-        for (Calciatore c : tit) sb.append("• ").append(c.getRuolo().getAbbreviazione())
-                .append(" ").append(c.getNomeCompleto()).append("\n");
-        sb.append("\n🪑 Panchina (").append(pan.size()).append(")\n");
-        for (Calciatore c : pan) sb.append("• ").append(c.getRuolo().getAbbreviazione())
-                .append(" ").append(c.getNomeCompleto()).append("\n");
-        area.setText(sb.toString());
+        String[] cols = {"Ruolo","Giocatore","G","A","Amm","Esp","CS","Voto","Fanta"};
+        DefaultTableModel m = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r,int c){ return false; }
+            @Override public Class<?> getColumnClass(int c) {
+                return switch (c) {
+                    case 2,3,4,5 -> Integer.class;
+                    case 6       -> Boolean.class;
+                    case 7,8     -> Double.class;
+                    default      -> String.class;
+                };
+            }
+        };
+        JTable t = new JTable(m);
+        t.setRowHeight(26);
+        t.getTableHeader().setReorderingAllowed(false);
 
-        p.add(new JScrollPane(area), BorderLayout.CENTER);
+        List<Calciatore> titolari = formazioneDAO.trovaTitolari(idFormazione);
+
+        // === ORDINAMENTO: Portiere → Difensore → Centrocampista → Attaccante,
+        // poi per cognome e nome (case-insensitive)
+        titolari.sort(
+            Comparator.comparingInt((Calciatore c) -> ruoloRank(c.getRuolo()))
+                    .thenComparing(Calciatore::getCognome, String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(Calciatore::getNome,     String.CASE_INSENSITIVE_ORDER)
+        );
+        // ===
+
+        double somma = 0.0;
+        for (Calciatore c : titolari) {
+            VotoGiornata vg = votoDAO.trovaVoto(c.getIdCalciatore(), giornata);
+            double votoBase = (vg != null) ? vg.getVotoBase() : 0.0;
+
+            List<PunteggioGiocatore> evs = eventiDAO.trovaEventiCalciatore(c.getIdCalciatore(), giornata);
+            int gol=0, assist=0, amm=0, esp=0; boolean cs=false; double extra = 0.0;
+
+            for (PunteggioGiocatore e : evs) {
+                int id = e.getIdBonusMalus();
+                int q  = e.getQuantita();
+                switch (id) {
+                    case BM_GOL -> gol += q;
+                    case BM_ASSIST -> assist += q;
+                    case BM_AMMONIZIONE -> amm += q;
+                    case BM_ESPULSIONE -> esp += q;
+                    case BM_IMBATTIBILITA -> cs = cs || (q > 0);
+                    default -> {}
+                }
+                double val = eventiDAO.getValoreBonus(id);
+                extra += val * q;
+            }
+
+            double votoBaseR = Math.round(votoBase * 10.0) / 10.0;
+            double fantavoto = Math.max(1.0, Math.round((votoBaseR + extra) * 10.0) / 10.0);
+            somma += fantavoto;
+
+            String ruoloStr = switch (c.getRuolo()) {
+                case PORTIERE -> "P";
+                case DIFENSORE -> "D";
+                case CENTROCAMPISTA -> "C";
+                case ATTACCANTE -> "A";
+            };
+            String nome = c.getNome() + " " + c.getCognome();
+
+            m.addRow(new Object[]{ ruoloStr, nome, gol, assist, amm, esp, cs, votoBaseR, fantavoto });
+        }
+
+        p.add(new JScrollPane(t), BorderLayout.CENTER);
+
+        JLabel tot = new JLabel(String.format("Totale fanta: %.1f", somma), JLabel.RIGHT);
+        tot.setFont(tot.getFont().deriveFont(Font.BOLD));
+        p.add(tot, BorderLayout.SOUTH);
         return p;
     }
+
 }

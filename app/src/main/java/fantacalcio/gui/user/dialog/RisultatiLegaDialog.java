@@ -35,12 +35,24 @@ public class RisultatiLegaDialog extends JDialog {
     private final ScontroLegaDAO scontroDAO;
     private final int giornataCorrente;
     private boolean dblClickHooked = false;
+    private Runnable onChange;
+    private boolean suppressComboEvents = false;
 
     // Componenti GUI
     private JComboBox<Integer> comboGiornata;
     private JTable tabellaRisultati;
     private DefaultTableModel modelTabella;
     private JLabel lblTitolo;
+
+    public RisultatiLegaDialog(Window parent, Lega lega, int giornataCorrente, Runnable onChange) {
+        super(parent, "Risultati Lega - " + lega.getNome(), ModalityType.APPLICATION_MODAL);
+        this.lega = lega;
+        this.giornataCorrente = giornataCorrente;
+        this.scontroDAO = new ScontroLegaDAO();
+        this.onChange = onChange;
+        initializeGUI();
+        setLocationRelativeTo(parent);
+    }
     
     public RisultatiLegaDialog(Window parent, Lega lega, int giornataCorrente) {
         super(parent, "Risultati Lega - " + lega.getNome(), ModalityType.APPLICATION_MODAL);
@@ -70,14 +82,15 @@ public class RisultatiLegaDialog extends JDialog {
         lblTitolo.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         lblTitolo.setForeground(new Color(33, 150, 243));
         
-        // Combo per selezione giornata
         comboGiornata = new JComboBox<>();
-        for (int i = 1; i <= giornataCorrente; i++) {
-            comboGiornata.addItem(i);
-        }
-        comboGiornata.setSelectedItem(giornataCorrente);
-        comboGiornata.addActionListener(e -> loadRisultati());
-        
+        int maxGiornate = scontroDAO.getMaxGiornatePublic(lega.getIdLega());
+        if (maxGiornate <= 0) maxGiornate = 1;
+        for (int i = 1; i <= maxGiornate; i++) comboGiornata.addItem(i);
+        comboGiornata.setSelectedItem(Math.min(giornataCorrente, maxGiornate));
+
+        comboGiornata.addActionListener(e -> {
+                    if (!suppressComboEvents) loadRisultati();
+                });
         String[] colonne = {"#","Partita","Risultato","Stato","Data"};
         modelTabella = new DefaultTableModel(colonne, 0) {
             @Override public boolean isCellEditable(int r,int c){ return false; }
@@ -110,6 +123,23 @@ public class RisultatiLegaDialog extends JDialog {
             });
         }
     }
+
+    private void refreshComboGiornate(Integer preferita) {
+        int max = scontroDAO.getMaxGiornatePublic(lega.getIdLega());
+        suppressComboEvents = true;
+        try {
+            comboGiornata.removeAllItems();
+            for (int i = 1; i <= Math.max(1, max); i++) comboGiornata.addItem(i);
+
+            Integer target = (preferita != null && preferita >= 1 && preferita <= Math.max(1, max))
+                    ? preferita
+                    : Math.max(1, max);
+            comboGiornata.setSelectedItem(target);
+        } finally {
+            suppressComboEvents = false;
+        }
+    }
+
     
     private void setupLayout() {
         JPanel headerPanel = new JPanel(new BorderLayout());
@@ -142,6 +172,51 @@ public class RisultatiLegaDialog extends JDialog {
         add(headerPanel, BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
+
+        JButton btnSimulaGiornata = new JButton("▶ Simula giornata");
+        styleButton(btnSimulaGiornata, new Color(76, 175, 80));
+
+        JButton btnSimulaTutto = new JButton("⏩ Simula tutta la lega");
+        styleButton(btnSimulaTutto, new Color(33, 150, 243));
+
+        btnSimulaGiornata.addActionListener(e -> {
+        Integer g = (Integer) comboGiornata.getSelectedItem();
+        if (g == null) return;
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        new SwingWorker<Void,Void>() {
+            @Override protected Void doInBackground() {
+                new fantacalcio.service.MatchSimulationService().simulaGiornata(lega.getIdLega(), g);
+                return null;
+            }
+            @Override protected void done() {
+                setCursor(Cursor.getDefaultCursor());
+                int next = scontroDAO.getGiornataCorrente(lega.getIdLega());
+                refreshComboGiornate(next);
+                loadRisultati();
+                if (onChange != null) onChange.run();
+                }
+            }.execute();
+        });
+
+        btnSimulaTutto.addActionListener(e -> {
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            new SwingWorker<Void,Void>() {
+                @Override protected Void doInBackground() {
+                    new fantacalcio.service.MatchSimulationService().simulaTuttaLaLega(lega.getIdLega());
+                    return null;
+                }
+                @Override protected void done() {
+                    setCursor(Cursor.getDefaultCursor());
+                    refreshComboGiornate(null);
+                    loadRisultati();
+                    if (onChange != null) onChange.run();
+                }
+            }.execute();
+        });
+
+        controlsPanel.add(Box.createHorizontalStrut(12));
+        controlsPanel.add(btnSimulaGiornata);
+        controlsPanel.add(btnSimulaTutto);
     }
 
     
@@ -191,18 +266,9 @@ public class RisultatiLegaDialog extends JDialog {
 
 
     private void apriDettaglioScontro(int idScontro) {
-        scontroDAO.trovaScontroById(idScontro).ifPresentOrElse(s -> {
-            new DettaglioScontroDialog(
-                this,
-                s.getNomeSquadra1(),  s.getIdFormazione1(),
-                s.getNomeSquadra2(),  s.getIdFormazione2()
-            ).setVisible(true);
-        }, () -> {
-            javax.swing.JOptionPane.showMessageDialog(
-                this, "Scontro non trovato (ID=" + idScontro + ")", "Errore",
-                javax.swing.JOptionPane.ERROR_MESSAGE
-            );
-        });
+        Integer g = (Integer) comboGiornata.getSelectedItem();
+        if (g == null) return;
+        new DettaglioScontroDialog(this, idScontro, g).setVisible(true);
     }
 
     private void styleButton(JButton button, Color color) {
