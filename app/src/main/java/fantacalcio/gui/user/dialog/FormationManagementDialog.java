@@ -56,8 +56,7 @@ public class FormationManagementDialog extends JDialog {
     private JLabel lblGiornataCorrente, lblCountdown, lblStatoLega;
     private JButton btnSalvaFormazione, btnResetFormazione, btnChiudi;
     
-    // Logica formazione
-    private Map<Calciatore.Ruolo, List<Calciatore>> formazione;
+    private final Map<Calciatore.Ruolo, List<Calciatore>> formazione;
     private final String[] moduli = {"3-4-3", "3-5-2", "4-3-3", "4-4-2", "4-5-1", "5-3-2"};
     private final int GIORNATA_CORRENTE = 1;
     

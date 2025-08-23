@@ -157,9 +157,9 @@ public class VisualFormationDialog extends JDialog {
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttons.setOpaque(false);
 
-        btnSalva = button("💾 Salva (0/" + titolariRichiesti + ")", new Color(76, 175, 80), e -> onSave());
-        btnReset = button("🔄 Reset", new Color(255, 152, 0), e -> onReset());
-        JButton chiudi = button("❌ Chiudi", new Color(158, 158, 158), e -> dispose());
+        btnSalva = button(" Salva (0/" + titolariRichiesti + ") ", new Color(76, 175, 80), e -> onSave());
+        btnReset = button(" Reset ", new Color(255, 152, 0), e -> onReset());
+        JButton chiudi = button(" Chiudi ", new Color(158, 158, 158), e -> dispose());
 
         buttons.add(btnSalva);
         buttons.add(btnReset);
@@ -168,9 +168,6 @@ public class VisualFormationDialog extends JDialog {
         footer.add(buttons, BorderLayout.EAST);
         return footer;
     }
-
-
-    /* -------------------- Bottoni posizione -------------------- */
 
     private void createPositionButtons() {
         // GK
@@ -194,12 +191,10 @@ public class VisualFormationDialog extends JDialog {
     private void createButton(String posId, Calciatore.Ruolo ruolo) {
         JButton b = new JButton("+") {
             @Override protected void paintComponent(Graphics g) {
-                // pill con ombra
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                 int w = getWidth(), h = getHeight();
-                // ombra
                 g2.setColor(new Color(0,0,0,35));
                 g2.fillRoundRect(4, 6, w-8, h-8, 28, 28);
 
@@ -211,12 +206,10 @@ public class VisualFormationDialog extends JDialog {
                 g2.setPaint(new GradientPaint(0, 0, c1, 0, h, c2));
                 g2.fillRoundRect(0, 0, w-10, h-10, 28, 28);
 
-                // bordo
                 g2.setColor(new Color(255,255,255,160));
                 g2.setStroke(new BasicStroke(2f));
                 g2.drawRoundRect(0, 0, w-10, h-10, 28, 28);
 
-                // testo
                 g2.setColor(Color.WHITE);
                 Font f = getFont().deriveFont(Font.BOLD, 14f);
                 g2.setFont(f);
@@ -250,7 +243,6 @@ public class VisualFormationDialog extends JDialog {
                 }
             }
         });
-
         bottoniPosizione.put(posId, b);
         pitchPanel.add(b);
     }
@@ -296,21 +288,32 @@ public class VisualFormationDialog extends JDialog {
 
     private double[] distributeY(int n) {
         switch (n) {
-            case 1:  return new double[]{0.50};
-            case 2:  return new double[]{0.35, 0.65};
-            case 3:  return new double[]{0.25, 0.50, 0.75};
-            case 4:  return new double[]{0.18, 0.38, 0.62, 0.82};
-            case 5:  return new double[]{0.12, 0.32, 0.50, 0.68, 0.88};
-            case 6:  return new double[]{0.10, 0.28, 0.46, 0.54, 0.72, 0.90};
-            default:
+            case 1 -> {
+                return new double[]{0.50};
+            }
+            case 2 -> {
+                return new double[]{0.35, 0.65};
+            }
+            case 3 -> {
+                return new double[]{0.25, 0.50, 0.75};
+            }
+            case 4 -> {
+                return new double[]{0.18, 0.38, 0.62, 0.82};
+            }
+            case 5 -> {
+                return new double[]{0.12, 0.32, 0.50, 0.68, 0.88};
+            }
+            case 6 -> {
+                return new double[]{0.10, 0.28, 0.46, 0.54, 0.72, 0.90};
+            }
+            default -> {
                 double[] y = new double[n];
                 double step = 1.0 / (n + 1);
                 for (int i = 0; i < n; i++) y[i] = step * (i + 1);
                 return y;
+            }
         }
     }
-
-    /* -------------------- Selettore giocatori -------------------- */
 
     private void openPlayerSelector(String posId, Calciatore.Ruolo ruolo) {
         List<Calciatore> candidati = getEligiblePlayers(ruolo);
@@ -356,12 +359,11 @@ public class VisualFormationDialog extends JDialog {
         return (iniz + g).trim();
     }
 
-    /* -------------------- Contatori e azioni -------------------- */
 
     private void updateCountersAndSave() {
         int tot = posizioni.size();
         btnSalva.setEnabled(tot == titolariRichiesti);
-        btnSalva.setText("💾 Salva (" + tot + "/" + titolariRichiesti + ")");
+        btnSalva.setText(" Salva (" + tot + "/" + titolariRichiesti + ") ");
     }
 
 
@@ -542,8 +544,6 @@ public class VisualFormationDialog extends JDialog {
         }
     }
 
-    /* -------------------- Picker giocatori -------------------- */
-
     private static class PlayerPicker extends JDialog {
         private Calciatore selected;
 
@@ -587,7 +587,6 @@ public class VisualFormationDialog extends JDialog {
             add(sp, BorderLayout.CENTER);
             add(bottom, BorderLayout.SOUTH);
 
-            // filtro live
             search.getDocument().addDocumentListener(new DocumentListener() {
                 private void filter() {
                     String q = search.getText().trim().toLowerCase();
