@@ -36,13 +36,8 @@ import fantacalcio.model.Formazione;
 import fantacalcio.model.Lega;
 import fantacalcio.model.SquadraFantacalcio;
 import fantacalcio.model.Utente;
-import fantacalcio.util.LeagueTicker;
 
 public class LeagueDetailPanel extends JPanel {
-
-    // === Nuovo: solo ticker a secondi (2 min totali, deadline a 30s) ===
-    private LeagueTicker ticker;
-
     private final UserMainFrame parentFrame;
     private final Utente utenteCorrente;
     private final Lega lega;
@@ -52,7 +47,6 @@ public class LeagueDetailPanel extends JPanel {
 
     private SquadraFantacalcio squadraUtente;
     private JPanel contentPanel;
-    private JLabel lblCountdown; // label monospaziata per il timer
 
     public LeagueDetailPanel(UserMainFrame parentFrame, Utente utente, Lega lega) {
         this.parentFrame = parentFrame;
@@ -104,7 +98,6 @@ public class LeagueDetailPanel extends JPanel {
     }
 
     private void showTeamCreation() {
-        stopTicker(); // sicurezza
         contentPanel.removeAll();
 
         JPanel headerPanel = new JPanel(new BorderLayout());
@@ -135,7 +128,6 @@ public class LeagueDetailPanel extends JPanel {
     }
 
     private void showTeamManagement() {
-        stopTicker(); // evita doppio timer
         contentPanel.removeAll();
 
         // Header
@@ -169,9 +161,6 @@ public class LeagueDetailPanel extends JPanel {
         contentPanel.add(headerPanel, BorderLayout.NORTH);
         contentPanel.add(mainPanel, BorderLayout.CENTER);
 
-        // Avvio ticker di test: 2:00 totali, deadline formazioni a 0:30
-        startTicker2Min();
-
         contentPanel.revalidate();
         contentPanel.repaint();
     }
@@ -186,16 +175,9 @@ public class LeagueDetailPanel extends JPanel {
         JPanel leftInfo = new JPanel(new FlowLayout(FlowLayout.LEFT));
         leftInfo.add(new JLabel("Stato: " + statoLega));
         leftInfo.add(Box.createHorizontalStrut(20));
-        leftInfo.add(new JLabel("Giornata: " + giornataCorrente));
+        leftInfo.add(new JLabel(" " + (giornataCorrente < 38 ? "Giornata: " + giornataCorrente : "Lega conclusa")));
 
-        // Destra: countdown (larghezza fissa) + pulsante risultati
         JPanel rightInfo = new JPanel(new BorderLayout(8, 0));
-
-        lblCountdown = new JLabel(" "); // inizialmente vuoto
-        lblCountdown.setFont(new Font(Font.MONOSPACED, Font.BOLD, 12));
-        Dimension fixed = new Dimension(210, lblCountdown.getPreferredSize().height);
-        lblCountdown.setPreferredSize(fixed);
-        rightInfo.add(lblCountdown, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         if ("IN_CORSO".equals(statoLega) || "TERMINATA".equals(statoLega)) {
@@ -203,75 +185,26 @@ public class LeagueDetailPanel extends JPanel {
             styleButton(btnRisultati, new Color(33, 150, 243));
             btnRisultati.addActionListener(e -> mostraRisultati());
             actions.add(btnRisultati);
+            JButton btnClassifica = new JButton("🏅 Classifica");
+            styleButton(btnClassifica, new Color(156, 39, 176));
+            btnClassifica.addActionListener(e -> mostraClassifica());
+            actions.add(Box.createHorizontalStrut(8));
+            actions.add(btnClassifica);
         }
         rightInfo.add(actions, BorderLayout.EAST);
-
         infoPanel.add(leftInfo, BorderLayout.WEST);
         infoPanel.add(rightInfo, BorderLayout.EAST);
         return infoPanel;
     }
 
-    // ===== Ticker a 2 minuti (test) =====
-    private void startTicker2Min() {
-        // sicurezza: label potrebbe non esistere se l’utente non ha squadra
-        if (lblCountdown == null) return;
-
-        ticker = new LeagueTicker(
-            lega.getIdLega(),
-            120, // 2:00 totali
-            30,  // deadline a 0:30 (quindi 1:30 per consegnare)
-            new LeagueTicker.Listener() {
-                @Override public void onTick(int secondsLeft) {
-                    lblCountdown.setText("⏳ Prossima giornata tra " + fmtMMSS(secondsLeft));
-                }
-
-                @Override public void onDeadlineFormazioni() {
-                    // TODO: congela formazioni mancanti (clona l’ultima)
-                    // Esegui su worker per non bloccare l’EDT:
-                    new SwingWorker<Void, Void>() {
-                        @Override protected Void doInBackground() {
-                            // new SchedulerDAO().congelaFormazioniMancanti(lega.getIdLega(), scontroDAO.getGiornataCorrente(lega.getIdLega()));
-                            return null;
-                        }
-                        @Override protected void done() {
-                            // potresti mostrare un toast o aggiornare UI se serve
-                        }
-                    }.execute();
-                }
-
-                @Override public void onStartSimulazione() {
-                    lblCountdown.setText("▶ Inizio giornata!");
-                    // TODO: simulazione risultati (worker asincrono)
-                    new SwingWorker<Void, Void>() {
-                        @Override protected Void doInBackground() {
-                            // esempio: scontroDAO.simulaGiornata(lega.getIdLega(), scontroDAO.getGiornataCorrente(lega.getIdLega()));
-                            return null;
-                        }
-                        @Override protected void done() {
-                            // Al termine aggiorna la UI o apri i risultati
-                            // mostraRisultati();
-                        }
-                    }.execute();
-                }
-            }
-        );
-        ticker.start();
+    private void mostraClassifica() {
+        Integer idMyTeam = (squadraUtente != null) ? squadraUtente.getIdSquadraFantacalcio() : null;
+        new fantacalcio.gui.user.dialog.ClassificaLegaDialog(
+                SwingUtilities.getWindowAncestor(this),
+                lega,
+                idMyTeam
+        ).setVisible(true);
     }
-
-    private void stopTicker() {
-        if (ticker != null) {
-            ticker.stop();
-            ticker = null;
-        }
-    }
-
-    private static String fmtMMSS(long totalSeconds) {
-        long m = totalSeconds / 60;
-        long s = totalSeconds % 60;
-        return String.format("%02d:%02d", m, s);
-    }
-
-    // ===== fine ticker =====
 
     private JPanel createSquadreLegaTable() {
         JPanel tablePanel = new JPanel(new BorderLayout());
@@ -331,7 +264,7 @@ public class LeagueDetailPanel extends JPanel {
             formazionePanel.add(infoPanel, BorderLayout.WEST);
             formazionePanel.add(buttonPanel, BorderLayout.EAST);
         } else {
-            infoPanel.add(new JLabel("⚠️ Nessuna formazione impostata per la giornata " + giornataCorrente));
+            infoPanel.add(new JLabel(" Nessuna formazione impostata per la giornata " ));
 
             JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
             JButton btnCreaFormazione = new JButton("⚙️ Crea Formazione");
@@ -365,16 +298,16 @@ public class LeagueDetailPanel extends JPanel {
             List<Calciatore> panchinari = formazioneDAO.trovaPanchinari(idFormazione);
 
             StringBuilder info = new StringBuilder();
-            info.append("🏆 FORMAZIONE GIORNATA ").append(giornataCorrente).append("\n\n");
-            info.append("📐 Modulo: ").append(formazione.getModulo()).append("\n\n");
+            info.append("FORMAZIONE GIORNATA ").append(giornataCorrente).append("\n\n");
+            info.append("Modulo: ").append(formazione.getModulo()).append("\n\n");
 
-            info.append("⭐ TITOLARI (").append(titolari.size()).append("):\n");
+            info.append("TITOLARI (").append(titolari.size()).append("):\n");
             for (Calciatore c : titolari) {
                 info.append("• ").append(c.getRuolo().getAbbreviazione())
                         .append(" ").append(c.getNomeCompleto()).append("\n");
             }
 
-            info.append("\n🪑 PANCHINA (").append(panchinari.size()).append("):\n");
+            info.append("\n PANCHINA (").append(panchinari.size()).append("):\n");
             for (Calciatore c : panchinari) {
                 info.append("• ").append(c.getRuolo().getAbbreviazione())
                         .append(" ").append(c.getNomeCompleto()).append("\n");
@@ -457,13 +390,21 @@ public class LeagueDetailPanel extends JPanel {
     }
 
     private void mostraRisultati() {
+        Runnable onChange = () -> SwingUtilities.invokeLater(() -> {
+            showTeamManagement();   // ricostruisce intestazione + pannelli (e quindi rilegge la giornata corrente)
+            revalidate();
+            repaint();
+        });
+
         RisultatiLegaDialog dialog = new RisultatiLegaDialog(
                 SwingUtilities.getWindowAncestor(this),
                 lega,
-                scontroDAO.getGiornataCorrente(lega.getIdLega())
+                scontroDAO.getGiornataCorrente(lega.getIdLega()),
+                onChange
         );
         dialog.setVisible(true);
     }
+
 
     public void onTeamCreated(SquadraFantacalcio nuovaSquadra) {
         this.squadraUtente = nuovaSquadra;
@@ -476,22 +417,6 @@ public class LeagueDetailPanel extends JPanel {
                 JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private static class SquadraLegaInfo {
-        String nomeSquadra;
-        int numeroGiocatori;
-        int budgetSpeso;
-        boolean completata;
-        String proprietario;
-
-        SquadraLegaInfo(String nome, int giocatori, int budget, boolean completa, String owner) {
-            this.nomeSquadra = nome;
-            this.numeroGiocatori = giocatori;
-            this.budgetSpeso = budget;
-            this.completata = completa;
-            this.proprietario = owner;
-        }
-    }
-
     private void styleButton(JButton button, Color color) {
         button.setBackground(color);
         button.setForeground(Color.WHITE);
@@ -499,11 +424,5 @@ public class LeagueDetailPanel extends JPanel {
         button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-    }
-
-    // Stop del ticker quando il pannello viene rimosso (evita leak/thread vivi)
-    @Override public void removeNotify() {
-        stopTicker();
-        super.removeNotify();
     }
 }

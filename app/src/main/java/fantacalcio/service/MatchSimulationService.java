@@ -1,224 +1,228 @@
 package fantacalcio.service;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Random;
 
+import fantacalcio.dao.ClassificaDAO;
+import fantacalcio.dao.FasciaAppartenenzaDAO;
 import fantacalcio.dao.FormazioneDAO;
+import fantacalcio.dao.PunteggioGiocatoreDAO;
 import fantacalcio.dao.ScontroLegaDAO;
+import fantacalcio.dao.VotoGiornataDAO;
 import fantacalcio.model.Calciatore;
+import fantacalcio.model.Calciatore.Ruolo;
+import fantacalcio.model.FasciaGiocatore;
 import fantacalcio.model.ScontroLega;
+import fantacalcio.model.VotoGiornata;
 import fantacalcio.util.DatabaseConnection;
 
-/**
- * Service per simulare le partite basandosi sulle fasce dei giocatori
- */
 public class MatchSimulationService {
     
-    private final ScontroLegaDAO scontroDAO;
-    private final FormazioneDAO formazioneDAO;
-    private final Random random;
-    
+    private static final int BM_GOL           = 1;
+    private static final int BM_ASSIST        = 2;
+    private static final int BM_AMMONIZIONE   = 3;
+    private static final int BM_ESPULSIONE    = 4;
+    private static final int BM_IMBATTIBILITA = 5;
+
+    private final PunteggioGiocatoreDAO punteggioDAO = new PunteggioGiocatoreDAO();
+    private final ScontroLegaDAO scontroDAO = new ScontroLegaDAO();
+    private final FormazioneDAO formazioneDAO = new FormazioneDAO();
+    private final VotoGiornataDAO votoDAO = new VotoGiornataDAO();
+    private final PunteggioGiocatoreDAO eventiDAO = new PunteggioGiocatoreDAO();
+    private final FasciaAppartenenzaDAO fasciaDAO = new FasciaAppartenenzaDAO();
+    private final ClassificaDAO classificaDAO = new ClassificaDAO();
+
+    private final Random rnd = new Random();
+    private final double VAL_GOL, VAL_ASSIST, VAL_AMM, VAL_ESP, VAL_CS;
+
     public MatchSimulationService() {
-        this.scontroDAO = new ScontroLegaDAO();
-        this.formazioneDAO = new FormazioneDAO();
-        this.random = new Random();
+        VAL_GOL    = eventiDAO.getValoreBonus(BM_GOL);           // +3.00
+        VAL_ASSIST = eventiDAO.getValoreBonus(BM_ASSIST);        // +1.00
+        VAL_AMM    = eventiDAO.getValoreBonus(BM_AMMONIZIONE);   // -0.50
+        VAL_ESP    = eventiDAO.getValoreBonus(BM_ESPULSIONE);    // -1.00
+        VAL_CS     = eventiDAO.getValoreBonus(BM_IMBATTIBILITA); // +1.00
     }
-    
-    /**
-     * Simula tutti gli scontri di una giornata
-     */
+
+    private static double rnd1(double v){ return Math.round(v*10.0)/10.0; }
+
     public void simulaGiornata(int idLega, int numeroGiornata) {
-        List<ScontroLega> scontri = scontroDAO.trovaSccontriGiornata(idLega, numeroGiornata);
-        
-        for (ScontroLega scontro : scontri) {
-            if (scontro.getStato() == ScontroLega.StatoScontro.PROGRAMMATO) {
-                simulaScontro(scontro, numeroGiornata);
+        List<ScontroLega> scontri = scontroDAO.trovaScontriGiornata(idLega, numeroGiornata);
+        for (ScontroLega s : scontri) {
+            if (s.getStato() == ScontroLega.StatoScontro.PROGRAMMATO
+            || s.getStato() == ScontroLega.StatoScontro.IN_CORSO) {
+                simulaScontro(s, numeroGiornata);
             }
         }
-        
-        // Avanza alla prossima giornata se tutti gli scontri sono completati
-        if (tuttiScontriCompletati(scontri)) {
-            scontroDAO.avanzaGiornata(idLega);
+        if (!scontroDAO.esistonoScontriDaGiocare(idLega)) {
+            scontroDAO.setStatoLega(idLega, "TERMINATA");
         }
     }
-    
-    /**
-     * Simula un singolo scontro
-     */
-    private void simulaScontro(ScontroLega scontro, int numeroGiornata) {
-        try {
-            // Calcola punteggi per entrambe le squadre
-            double punteggio1 = calcolaPunteggioSquadra(scontro.getIdSquadra1(), numeroGiornata);
-            double punteggio2 = calcolaPunteggioSquadra(scontro.getIdSquadra2(), numeroGiornata);
-            
-            // Aggiorna risultato
-            scontroDAO.aggiornaRisultato(scontro.getIdScontro(), punteggio1, punteggio2);
-            
-            System.out.println("Scontro simulato: " + scontro.getNomeSquadra1() + " " + 
-                             punteggio1 + " - " + punteggio2 + " " + scontro.getNomeSquadra2());
-            
-        } catch (Exception e) {
-            System.err.println("Errore simulazione scontro: " + e.getMessage());
+
+    public void simulaTuttaLaLega(int idLega) {
+        int max = scontroDAO.getMaxGiornatePublic(idLega);
+        if (max <= 0) return;
+
+        for (int g = 1; g <= max; g++) {
+            var scontri = scontroDAO.trovaScontriGiornata(idLega, g);
+            if (scontri == null || scontri.isEmpty()) continue;
+
+            boolean daGiocare = scontri.stream().anyMatch(s ->
+                s.getStato() == ScontroLega.StatoScontro.PROGRAMMATO
+            || s.getStato() == ScontroLega.StatoScontro.IN_CORSO);
+
+            if (daGiocare) simulaGiornata(idLega, g);
+        }
+        if (!scontroDAO.esistonoScontriDaGiocare(idLega)) {
+            scontroDAO.setStatoLega(idLega, "TERMINATA");
         }
     }
+
     
-    /**
-     * Calcola il punteggio di una squadra basandosi sulla formazione e le fasce
-     */
-    private double calcolaPunteggioSquadra(int idSquadra, int numeroGiornata) {
-        // Trova la formazione per questa giornata
-        Integer idFormazione = formazioneDAO.getFormazioneSquadraGiornata(idSquadra, numeroGiornata);
-        
-        if (idFormazione == null) {
-            System.out.println("Nessuna formazione trovata per squadra " + idSquadra + 
-                             " giornata " + numeroGiornata + " - punteggio 0");
-            return 0.0; // Nessuna formazione = 0 punti
+
+
+    private void simulaScontro(ScontroLega s, int giornata) {
+        simulaFormazione(s.getIdFormazione1(), giornata);
+        simulaFormazione(s.getIdFormazione2(), giornata);
+
+        double punti1 = punteggioDAO.calcolaTotaleFantapuntiFormazione(s.getIdFormazione1(), giornata);
+        double punti2 = punteggioDAO.calcolaTotaleFantapuntiFormazione(s.getIdFormazione2(), giornata);
+
+        punti1 = rnd1(punti1); punti2 = rnd1(punti2);
+
+        try (Connection c = DatabaseConnection.getInstance().getConnection()) {
+            formazioneDAO.aggiornaPunteggio(c, s.getIdFormazione1(), punti1);
+            formazioneDAO.aggiornaPunteggio(c, s.getIdFormazione2(), punti2);
+        } catch (SQLException ex) {
+            System.err.println("Update punteggio formazione: " + ex.getMessage());
         }
-        
-        // Prendi solo i titolari
+        scontroDAO.aggiornaRisultato(s.getIdScontro(), punti1, punti2);
+        aggiornaClassificaPerScontro(s, punti1, punti2);
+    }
+
+    private void aggiornaClassificaPerScontro(ScontroLega s, double p1, double p2) {
+        Integer idSq1 = formazioneDAO.getSquadraByFormazione(s.getIdFormazione1());
+        Integer idSq2 = formazioneDAO.getSquadraByFormazione(s.getIdFormazione2());
+        if (idSq1 == null || idSq2 == null) return;
+
+        Integer idC1 = classificaDAO.ensureIdClassificaPerSquadra(idSq1);
+        Integer idC2 = classificaDAO.ensureIdClassificaPerSquadra(idSq2);
+
+        int g1 = puntiToGolForClassifica(p1);
+        int g2 = puntiToGolForClassifica(p2);
+
+        if (g1 > g2) {
+            classificaDAO.registraVittoria(idC1, p1, p2);
+            classificaDAO.registraSconfitta(idC2, p2, p1);
+        } else if (g1 < g2) {
+            classificaDAO.registraSconfitta(idC1, p1, p2);
+            classificaDAO.registraVittoria(idC2, p2, p1);
+        } else {
+            classificaDAO.registraPareggio(idC1, p1, p2);
+            classificaDAO.registraPareggio(idC2, p2, p1);
+        }
+    }
+
+    // Stessa logica usata per scrivere lo "x-y", qui solo per stabilire W/D/L
+    private static int puntiToGolForClassifica(double punti) {
+        if (punti < 66.0) return 0;
+        return 1 + (int) Math.floor((punti - 66.0) / 6.0);
+    }
+
+
+
+
+    /** Simula i titolari, scrive voti+eventi per ciascuno e ritorna la somma fantapunti. */
+    private double simulaFormazione(int idFormazione, int giornata) {
         List<Calciatore> titolari = formazioneDAO.trovaTitolari(idFormazione);
-        
-        if (titolari.size() != 11) {
-            System.out.println("Formazione incompleta per squadra " + idSquadra + 
-                             " (solo " + titolari.size() + " titolari) - punteggio ridotto");
-            return 30.0; // Formazione incompleta = punteggio molto basso
+        if (titolari == null || titolari.isEmpty()) return 0.0;
+
+        double totale = 0.0;
+        boolean portaInviolataTeam = rnd.nextDouble() < 0.35;
+
+        for (Calciatore c : titolari) {
+            FasciaGiocatore fg = fasciaDAO.trovaFasciaPerCalciatore(c.getIdCalciatore())
+                    .orElseGet(() -> {
+                        FasciaGiocatore def = new FasciaGiocatore();
+                        def.setVotoBaseStandard(6.0);
+                        def.setProbGolAttaccante(0.18);
+                        def.setProbGolCentrocampista(0.10);
+                        def.setProbGolDifensore(0.03);
+                        def.setProbAssist(0.12);
+                        def.setProbAmmonizione(0.22);
+                        def.setProbEspulsione(0.03);
+                        def.setProbImbattibilita(0.25);
+                        return def;
+                    });
+
+            PlayerPerf p = simulaPrestazione(c, fg, portaInviolataTeam);
+
+            // reset & write via DAO
+            votoDAO.cancellaVoto(c.getIdCalciatore(), giornata);
+            eventiDAO.cancellaEventi(c.getIdCalciatore(), giornata);
+
+            VotoGiornata voto = new VotoGiornata();
+            voto.setIdCalciatore(c.getIdCalciatore());
+            voto.setNumeroGiornata(giornata);
+            voto.setVotoBase(p.votoBase);
+            votoDAO.inserisciVoto(voto);
+
+            if (p.gol    > 0) eventiDAO.inserisciEvento(c.getIdCalciatore(), BM_GOL,           giornata, p.gol);
+            if (p.assist > 0) eventiDAO.inserisciEvento(c.getIdCalciatore(), BM_ASSIST,        giornata, p.assist);
+            if (p.amm    > 0) eventiDAO.inserisciEvento(c.getIdCalciatore(), BM_AMMONIZIONE,   giornata, p.amm);
+            if (p.esp    > 0) eventiDAO.inserisciEvento(c.getIdCalciatore(), BM_ESPULSIONE,    giornata, p.esp);
+            if (c.getRuolo()==Ruolo.PORTIERE && p.cs)
+                               eventiDAO.inserisciEvento(c.getIdCalciatore(), BM_IMBATTIBILITA, giornata, 1);
+
+            totale += calcFantavoto(p, c.getRuolo());
         }
-        
-        double punteggioTotale = 0.0;
-        
-        for (Calciatore calciatore : titolari) {
-            double punteggioCalciatore = simulaPrestazioneCalciatore(calciatore);
-            punteggioTotale += punteggioCalciatore;
-        }
-        
-        return Math.round(punteggioTotale * 10.0) / 10.0; // Arrotonda a 1 decimale
+        return Math.round(totale * 10.0) / 10.0;
     }
-    
-    /**
-     * Simula la prestazione di un singolo calciatore basandosi sulla sua fascia
-     */
-    private double simulaPrestazioneCalciatore(Calciatore calciatore) {
-        // Voto base tra 4.5 e 8.5
-        double votoBase = 4.5 + (random.nextDouble() * 4.0);
-        
-        // Bonus/malus basati sulla fascia
-        ProbabilitaFascia prob = getProbabilitaPerFascia(calciatore.getIdFascia());
-        if (prob == null) {
-            return votoBase; // Fascia non trovata
-        }
-        
-        double fantavoto = votoBase;
-        
-        // Simula eventi basati sul ruolo e fascia
-        double probGol = getProbabilitaGolPerRuolo(calciatore.getRuolo(), prob);
-        
-        // Gol (+3 punti)
-        if (random.nextDouble() < probGol) {
-            fantavoto += 3.0;
-        }
-        
-        // Assist (+1 punto)
-        if (random.nextDouble() < prob.probAssist) {
-            fantavoto += 1.0;
-        }
-        
-        // Imbattibilità per portieri (+1 punto)
-        if (calciatore.getRuolo() == Calciatore.Ruolo.PORTIERE && 
-            random.nextDouble() < prob.probImbattibilita) {
-            fantavoto += 1.0;
-        }
-        
-        // Ammonizione (-0.5 punti)
-        if (random.nextDouble() < prob.probAmmonizione) {
-            fantavoto -= 0.5;
-        }
-        
-        // Espulsione (-3 punti)
-        if (random.nextDouble() < prob.probEspulsione) {
-            fantavoto -= 3.0;
-        }
-        
-        // Assicurati che il voto non vada sotto 1.0
-        return Math.max(1.0, fantavoto);
-    }
-    
-    /**
-     * Ottiene le probabilità per una fascia specifica
-     */
-    private ProbabilitaFascia getProbabilitaPerFascia(int idFascia) {
-        String sql = "SELECT * FROM FASCIA_GIOCATORE WHERE ID_Fascia = ?";
-        
-        try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, idFascia);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return new ProbabilitaFascia(
-                        rs.getDouble("Prob_gol_attaccante"),
-                        rs.getDouble("Prob_gol_centrocampista"),
-                        rs.getDouble("Prob_gol_difensore"),
-                        rs.getDouble("Prob_assist"),
-                        rs.getDouble("Prob_ammonizione"),
-                        rs.getDouble("Prob_espulsione"),
-                        rs.getDouble("Prob_imbattibilita")
-                    );
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Errore lettura fascia: " + e.getMessage());
-        }
-        
-        // Valori di default se non trova la fascia
-        return new ProbabilitaFascia(0.15, 0.08, 0.03, 0.12, 0.20, 0.02, 0.25);
-    }
-    
-    /**
-     * Calcola la probabilità di gol basata sul ruolo
-     */
-    private double getProbabilitaGolPerRuolo(Calciatore.Ruolo ruolo, ProbabilitaFascia prob) {
-        return switch (ruolo) {
-            case ATTACCANTE -> prob.probGolAttaccante;
-            case CENTROCAMPISTA -> prob.probGolCentrocampista;
-            case DIFENSORE -> prob.probGolDifensore;
-            case PORTIERE -> 0.0; // I portieri non segnano
+
+    private PlayerPerf simulaPrestazione(Calciatore c, FasciaGiocatore fg, boolean csTeam) {
+        double votoBase = clamp(fg.getVotoBaseStandard() + rnd.nextGaussian()*0.6, 4.5, 9.5);
+
+        int gol=0, assist=0, amm=0, esp=0; boolean cs=false;
+        double pGol = switch (c.getRuolo()) {
+            case ATTACCANTE     -> fg.getProbGolAttaccante();
+            case CENTROCAMPISTA -> fg.getProbGolCentrocampista();
+            case DIFENSORE      -> fg.getProbGolDifensore();
+            case PORTIERE       -> 0.0;
         };
+
+        if (rnd.nextDouble() < pGol)                  gol++;
+        if (rnd.nextDouble() < fg.getProbAssist())    assist++;
+        if (rnd.nextDouble() < fg.getProbAmmonizione()) amm++;
+        if (rnd.nextDouble() < fg.getProbEspulsione())  esp++;
+        if (c.getRuolo()==Ruolo.PORTIERE && csTeam && rnd.nextDouble() < fg.getProbImbattibilita()) cs = true;
+
+        return new PlayerPerf(votoBase, gol, assist, amm, esp, cs);
     }
-    
-    /**
-     * Verifica se tutti gli scontri di una lista sono completati
-     */
-    private boolean tuttiScontriCompletati(List<ScontroLega> scontri) {
-        return scontri.stream().allMatch(s -> s.getStato() == ScontroLega.StatoScontro.COMPLETATO);
-    }
-    
-    /**
-     * Classe helper per le probabilità delle fasce
-     */
-    private static class ProbabilitaFascia {
-        final double probGolAttaccante;
-        final double probGolCentrocampista;
-        final double probGolDifensore;
-        final double probAssist;
-        final double probAmmonizione;
-        final double probEspulsione;
-        final double probImbattibilita;
-        
-        ProbabilitaFascia(double probGolAttaccante, double probGolCentrocampista, 
-                         double probGolDifensore, double probAssist, double probAmmonizione, 
-                         double probEspulsione, double probImbattibilita) {
-            this.probGolAttaccante = probGolAttaccante;
-            this.probGolCentrocampista = probGolCentrocampista;
-            this.probGolDifensore = probGolDifensore;
-            this.probAssist = probAssist;
-            this.probAmmonizione = probAmmonizione;
-            this.probEspulsione = probEspulsione;
-            this.probImbattibilita = probImbattibilita;
+
+    private void ensureXIOrCopyPrevious(int idFormazione, int giornata) {
+        // se già 11 titolari -> ok
+        if (formazioneDAO.countTitolari(idFormazione) == 11) return;
+
+        // prendi squadra e ultima formazione completa < giornata
+        Integer idSquadra = formazioneDAO.getSquadraByFormazione(idFormazione);
+        Integer prevForm = formazioneDAO.findLastFormazioneCompleta(idSquadra, giornata);
+        if (prevForm != null) {
+            formazioneDAO.copiaXI(prevForm, idFormazione);  // copia 11 titolari
         }
+        // (opzionale) else: auto-pick 11 dalla rosa con regole per ruolo
     }
+
+
+    private double calcFantavoto(PlayerPerf p, Ruolo ruolo) {
+        double fv = p.votoBase + p.gol*3 + p.assist*1 - p.amm*0.5 - p.esp*3;
+        if (ruolo==Ruolo.PORTIERE && p.cs) fv += 1;
+        return Math.max(1.0, fv);
+    }
+
+    private static double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    private record PlayerPerf(double votoBase, int gol, int assist, int amm, int esp, boolean cs) {}
 }

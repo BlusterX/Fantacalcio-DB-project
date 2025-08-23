@@ -174,8 +174,38 @@ public class ClassificaDAO {
         return out;
     }
 
-    /* ========================= HELPERS ========================= */
+    public Integer ensureIdClassificaPerSquadra(int idSquadraFantacalcio) {
+        final String sel = "SELECT ID_Classifica FROM SQUADRA_FANTACALCIO WHERE ID_Squadra_Fantacalcio=?";
+        final String upd = "UPDATE SQUADRA_FANTACALCIO SET ID_Classifica=? WHERE ID_Squadra_Fantacalcio=?";
+        try (Connection conn = db.getConnection()) {
+            Integer idClass = null;
+            try (PreparedStatement ps = conn.prepareStatement(sel)) {
+                ps.setInt(1, idSquadraFantacalcio);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        int v = rs.getInt(1);
+                        idClass = rs.wasNull() ? null : v;
+                    }
+                }
+            }
+            if (idClass != null) return idClass;
 
+            // non c'è: creala
+            Optional<Integer> created = creaClassificaVuota();
+            if (created.isEmpty()) throw new SQLException("Creazione CLASSIFICA fallita");
+            idClass = created.get();
+
+            try (PreparedStatement ps = conn.prepareStatement(upd)) {
+                ps.setInt(1, idClass);
+                ps.setInt(2, idSquadraFantacalcio);
+                ps.executeUpdate();
+            }
+            return idClass;
+        } catch (SQLException e) {
+            throw new RuntimeException("ensureIdClassificaPerSquadra: " + e.getMessage(), e);
+        }
+    }
+    
     private Classifica fromResultSet(ResultSet rs) throws SQLException {
         Classifica c = new Classifica();
         c.setIdClassifica(rs.getInt("ID_Classifica"));
