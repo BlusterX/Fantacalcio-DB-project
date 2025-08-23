@@ -12,16 +12,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import fantacalcio.dao.CalciatoreDAO;
+import fantacalcio.dao.FasciaAppartenenzaDAO;
+import fantacalcio.dao.FasciaGiocatoreDAO;
 import fantacalcio.dao.SquadraDAO;
 import fantacalcio.dao.TipoCampionatoDAO;
 import fantacalcio.model.Calciatore;
 import fantacalcio.model.Squadra;
 import fantacalcio.model.TipoCampionato;
 
-/**
- *   "/calciatori_serie_a.csv"
- *   "/calciatori_premier_league.csv"
- */
 public class DataPopulator {
 
     public enum CampionatoPredefinito {
@@ -30,10 +28,7 @@ public class DataPopulator {
 
         private final String nome;
         private final int anno;
-        CampionatoPredefinito(String nome, int anno) {
-            this.nome = nome;
-            this.anno = anno;
-        }
+        CampionatoPredefinito(String nome, int anno) { this.nome = nome; this.anno = anno; }
         public String getNome() { return nome; }
         public int getAnno() { return anno; }
     }
@@ -41,35 +36,41 @@ public class DataPopulator {
     private final SquadraDAO squadraDAO = new SquadraDAO();
     private final CalciatoreDAO calciatoreDAO = new CalciatoreDAO();
     private final TipoCampionatoDAO tipoCampionatoDAO = new TipoCampionatoDAO();
+    private final FasciaGiocatoreDAO fasciaGiocatoreDAO = new FasciaGiocatoreDAO();
+    private final FasciaAppartenenzaDAO fasciaAppDAO = new FasciaAppartenenzaDAO();
 
-    /**
-     * Popola SQUADRA e CALCIATORE per il campionato selezionato leggendo il CSV.
-     * @param campionato   SERIE_A_24_25 o PREMIER_LEAGUE_24_25
-     * @param resourceCsv  "/calciatori_serie_a.csv" oppure "/calciatori_premier_league.csv"
-     */
+    /** Soglie costo → nome fascia (adattale come vuoi) */
+    private static String nomeFasciaPerCosto(int costo) {
+        if (costo >= 65) return "TOP";
+        if (costo >= 50) return "SEMI-TOP";
+        if (costo >= 35) return "TITOLARE";
+        if (costo >= 26) return "ROTAZIONE";
+        return "SCOMMESSA";
+    }
+
     public void popolaSquadreECalciatoriDaCsv(CampionatoPredefinito campionato, String resourceCsv) {
         System.out.println("=== POPOLAMENTO SQUADRE + CALCIATORI DA CSV ===");
         System.out.println("Campionato: " + campionato.getNome() + " " + campionato.getAnno());
         System.out.println("CSV: " + resourceCsv);
 
-        // 1) ensure TipoCampionato (SOLO getOrCreate, non usiamo altri metodi)
         Integer idCampionato = ensureTipoCampionato(campionato.getNome(), campionato.getAnno());
         if (idCampionato == null) {
             System.err.println("Impossibile determinare ID_Campionato. Interrotto.");
             return;
         }
 
-        // 2) Prima passata: raccogliere l'elenco delle squadre dal CSV
+        // Precarico fasce in memoria (Nome_fascia -> ID_Fascia)
+        Map<String,Integer> nomeFasciaToId = fasciaGiocatoreDAO.mappaNomeToId();
+        if (nomeFasciaToId.isEmpty()) {
+            System.err.println("ATTENZIONE: FASCIA_GIOCATORE è vuota. Inserisci prima le fasce!");
+        }
+
+        // 1) passata: raccogli nomi squadre
         Set<String> nomiSquadre = new LinkedHashSet<>();
         try (InputStream is = getResource(resourceCsv);
              BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
-
             String header = reader.readLine();
-            if (header == null) {
-                System.err.println("CSV vuoto: " + resourceCsv);
-                return;
-            }
-
+            if (header == null) { System.err.println("CSV vuoto: " + resourceCsv); return; }
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] campi = splitCsv(line);
@@ -82,18 +83,14 @@ public class DataPopulator {
             return;
         }
 
-        // 3) Creare/mappare le squadre del campionato ESISTENTI
+        // 2) crea/mappa squadre del campionato
         Map<String, Integer> mappaSquadre = creaMappaSquadrePerCampionato(idCampionato);
         int createCount = 0, already = mappaSquadre.size();
 
-        // Inserisci squadre mancanti usando SOLO inserisciSquadra(...) del tuo DAO
-
         for (String nomeSquadra : nomiSquadre) {
             if (!mappaSquadre.containsKey(nomeSquadra)) {
-                // NOTA: usiamo 0 come placeholder per ID_Calciatore (coerente con il tuo modello int non-null)
                 Squadra s = new Squadra(nomeSquadra, idCampionato, 0);
-                boolean ok = squadraDAO.inserisciSquadra(s);
-                if (ok) {
+                if (squadraDAO.inserisciSquadra(s)) {
                     mappaSquadre.put(nomeSquadra, s.getIdSquadra());
                     createCount++;
                 } else {
@@ -101,20 +98,18 @@ public class DataPopulator {
                 }
             }
         }
-        System.out.println("Squadre esistenti: " + already + " | create ora: " + createCount + " | totali: " + mappaSquadre.size());
+        System.out.println("Squadre esistenti: " + already + " | create ora: " + createCount +
+                           " | totali: " + mappaSquadre.size());
 
-        // 4) Seconda passata: inserire i calciatori e ricordare il primo ID per ogni squadra
-        Map<Integer, Integer> primoCalciatorePerSquadra = new LinkedHashMap<>(); // ID_Squadra -> ID_Calciatore (primo visto)
+        // 3) seconda passata: inserisci calciatori + assegna fascia
+        Map<Integer, Integer> primoCalciatorePerSquadra = new LinkedHashMap<>();
         int inseriti = 0, saltati = 0, riga = 0;
 
         try (InputStream is = getResource(resourceCsv);
              BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
 
             String header = reader.readLine();
-            if (header == null) {
-                System.err.println("CSV vuoto alla seconda passata.");
-                return;
-            }
+            if (header == null) { System.err.println("CSV vuoto alla seconda passata."); return; }
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -122,8 +117,7 @@ public class DataPopulator {
                 String[] campi = splitCsv(line);
                 if (campi.length < 5) {
                     System.err.println("Riga " + riga + " non valida: " + line);
-                    saltati++;
-                    continue;
+                    saltati++; continue;
                 }
 
                 String nome = campi[0].trim();
@@ -139,23 +133,31 @@ public class DataPopulator {
                     Integer idSquadra = mappaSquadre.get(nomeSquadra);
                     if (idSquadra == null) {
                         System.err.println("Riga " + riga + " - squadra '" + nomeSquadra + "' non mappata. Calciatore saltato.");
-                        saltati++;
-                        continue;
+                        saltati++; continue;
                     }
 
                     Calciatore c = new Calciatore();
-                    c.setNome(nome); 
+                    c.setNome(nome);
                     c.setCognome(cognome);
-                    c.setRuolo(ruolo); 
+                    c.setRuolo(ruolo);
                     c.setCosto(costo);
-                    c.setInfortunato(false); 
+                    c.setInfortunato(false);
                     c.setSqualificato(false);
                     c.setIdSquadra(idSquadra);
-                    calciatoreDAO.inserisciCalciatore(c);
-                    boolean ok = calciatoreDAO.inserisciCalciatore(c);
+
+                    boolean ok = calciatoreDAO.inserisciCalciatore(c); // <-- SOLO una volta
                     if (ok) {
                         inseriti++;
                         primoCalciatorePerSquadra.putIfAbsent(idSquadra, c.getIdCalciatore());
+
+                        // Assegna fascia in base al costo
+                        String nomeFascia = nomeFasciaPerCosto(costo);
+                        Integer idFascia = nomeFasciaToId.get(nomeFascia.toUpperCase());
+                        if (idFascia != null) {
+                            fasciaAppDAO.assegnaFasciaUnica(c.getIdCalciatore(), idFascia);
+                        } else {
+                            System.err.println("Fascia non trovata in FASCIA_GIOCATORE: " + nomeFascia);
+                        }
                     } else {
                         saltati++;
                     }
@@ -169,19 +171,16 @@ public class DataPopulator {
             return;
         }
 
-        // 5) Aggiornare le squadre: rimpiazza il placeholder 0 con un calciatore reale
+        // 4) aggiorna ID_Calciatore di riferimento in SQUADRA (se ti serve)
         int aggiornate = 0;
         for (Map.Entry<Integer, Integer> e : primoCalciatorePerSquadra.entrySet()) {
             Integer idSquadra = e.getKey();
             Integer idCalciatore = e.getValue();
-
             Optional<Squadra> opt = squadraDAO.trovaSquadraPerId(idSquadra);
             if (opt.isPresent()) {
                 Squadra s = opt.get();
                 s.setIdCalciatore(idCalciatore);
-                if (squadraDAO.aggiornaSquadra(s)) {
-                    aggiornate++;
-                }
+                if (squadraDAO.aggiornaSquadra(s)) aggiornate++;
             }
         }
 
@@ -190,7 +189,6 @@ public class DataPopulator {
         System.out.println("Squadre aggiornate con ID_Calciatore reale: " + aggiornate + "/" + mappaSquadre.size());
     }
     private Integer ensureTipoCampionato(String nome, int anno) {
-        // Usa SOLO getOrCreate del tuo DAO
         TipoCampionato tc = tipoCampionatoDAO.getOrCreate(nome, anno);
         return (tc != null) ? tc.getIdCampionato() : null;
     }
@@ -199,29 +197,17 @@ public class DataPopulator {
         return tutte.stream()
                 .filter(s -> s.getIdCampionato() == idCampionato)
                 .collect(Collectors.toMap(
-                        Squadra::getNome,
-                        Squadra::getIdSquadra,
-                        (a, b) -> a,
-                        LinkedHashMap::new
+                        Squadra::getNome, Squadra::getIdSquadra, (a,b)->a, LinkedHashMap::new
                 ));
     }
     private static Calciatore.Ruolo parseRuolo(String ruolostr) {
-        String r = ruolostr.trim().toUpperCase();
-        switch (r) {
-            case "P" -> {
-                return Calciatore.Ruolo.PORTIERE;
-            }
-            case "D" -> {
-                return Calciatore.Ruolo.DIFENSORE;
-            }
-            case "C" -> {
-                return Calciatore.Ruolo.CENTROCAMPISTA;
-            }
-            case "A" -> {
-                return Calciatore.Ruolo.ATTACCANTE;
-            }
+        return switch (ruolostr.trim().toUpperCase()) {
+            case "P" -> Calciatore.Ruolo.PORTIERE;
+            case "D" -> Calciatore.Ruolo.DIFENSORE;
+            case "C" -> Calciatore.Ruolo.CENTROCAMPISTA;
+            case "A" -> Calciatore.Ruolo.ATTACCANTE;
             default -> throw new IllegalArgumentException("Ruolo non valido: " + ruolostr);
-        }
+        };
     }
     private static String[] splitCsv(String line) {
         String[] semi = line.split(";");
