@@ -30,7 +30,7 @@ Denzel,Dumfries,D,Inter,50
 Henrikh,Mkhitaryan,C,Inter,40
 Stefan,de Vrij,D,Inter,35
 Juan,Cuadrado,A,Inter,30
-Alexis,S�nchez,A,Inter,30
+Alexis,Sànchez,A,Inter,30
 
 # Juventus
 Wojciech,Szczesny,P,Juventus,60
@@ -59,7 +59,7 @@ Giacomo,Raspadori,A,Napoli,45
 Giovanni,Simeone,A,Napoli,40
 Eljif,Elmas,C,Napoli,35
 Leo,Ostigard,D,Napoli,30
-Jesper,Lindstr�m,C,Napoli,35
+Jesper,Lindstròm,C,Napoli,35
 
 # AS Roma
 Rui,Patricio,P,AS Roma,25
@@ -86,7 +86,7 @@ Ciro,Immobile,A,Lazio,70
 Felipe,Anderson,A,Lazio,50
 Matias,Vecino,C,Lazio,35
 Daichi,Kamada,C,Lazio,40
-Patric,Gabarr�n,D,Lazio,30
+Patric,Gabarròn,D,Lazio,30
 Gustav,Isaksen,A,Lazio,35
 Pedro,Rodriguez,A,Lazio,30
 
@@ -181,10 +181,10 @@ Alberto,Grassi,C,Empoli,30
 Simone,Bastoni,D,Empoli,25
 Giuseppe,Pezzella,D,Empoli,25
 Razvan,Marin,C,Empoli,30
-Nicol�,Cambagiorni,A,Empoli,25
+Nicolò,Cambagiorni,A,Empoli,25
 
 # Verona
-Lorenzo,Montip�,P,Verona,25
+Lorenzo,Montipò,P,Verona,25
 Isak,Hien,D,Verona,30
 Diego,Coppola,D,Verona,25
 Ondrej,Duda,C,Verona,35
@@ -216,7 +216,7 @@ Pantelis,Hatzidiakos,D,Cagliari,25
 Nahitan,Nandez,C,Cagliari,35
 Alessandro,Di Pardo,D,Cagliari,25
 Antoine,Makoumbou,C,Cagliari,30
-Nikola,Vla�i?,C,Cagliari,35
+Nikola,Vlasic,C,Cagliari,35
 Leonardo,Pavoletti,A,Cagliari,30
 Andrea,Petagna,A,Cagliari,30
 Gaetano,Oristanio,A,Cagliari,25
@@ -268,7 +268,7 @@ Samuele,Birindelli,D,Monza,30
 Roberto,Gagliardini,C,Monza,35
 Matteo,Pessina,C,Monza,50
 Andrea,Colpani,C,Monza,50
-Jos�,Machin,C,Monza,30
+Josè,Machin,C,Monza,30
 Dany,Mota,A,Monza,35
 Lorenzo,Colombo,A,Monza,30
 Patrick,Ciurria,A,Monza,35
@@ -295,7 +295,7 @@ Koni,De Winter,D,Genoa,30
 Ruslan,Malinovskyi,C,Genoa,35
 
 # Giocatori Scarsi
-Luka,Jovi?,ATTACCANTE,AC Milan,20
+Luka,Jovic,ATTACCANTE,AC Milan,20
 Yacine,Adli,CENTROCAMPISTA,AC Milan,20
 
 Stefano,Pirola,DIFENSORE,Inter,20
@@ -340,14 +340,14 @@ Riccardo,Saponara,ATTACCANTE,Verona,20
 Jovane,Cabral,ATTACCANTE,Salernitana,18
 Grigoris,Kastanos,CENTROCAMPISTA,Salernitana,20
 
-Boris,Radunovi?,PORTIERE,Cagliari,20
+Boris,Radunovic,PORTIERE,Cagliari,20
 Paulo,Azzi,DIFENSORE,Cagliari,18
 
 Anthony,Oyono,DIFENSORE,Frosinone,18
 Michele,Camporese,DIFENSORE,Frosinone,20
 
 Roberto,Picolo,CENTROCAMPISTA,Lecce,18
-Nikola,Krstovi?,ATTACCANTE,Lecce,20
+Nikola,Krstovic,ATTACCANTE,Lecce,20
 
 Gianluca,Mota,ATTACCANTE,Monza,18
 Andrea,Colpani,CENTROCAMPISTA,Monza,20
