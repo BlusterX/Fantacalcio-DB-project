@@ -162,6 +162,14 @@ public class FasciaGiocatoreDAO {
         }
     }
 
+    public java.util.Map<String,Integer> mappaNomeToId() {
+        var out = new java.util.HashMap<String,Integer>();
+        for (FasciaGiocatore f : trovaTutte()) {
+            out.put(f.getNomeFascia().toUpperCase(), f.getIdFascia());
+        }
+        return out;
+    }
+
     private FasciaGiocatore mapRow(ResultSet rs) throws SQLException {
         FasciaGiocatore f = new FasciaGiocatore();
         f.setIdFascia(rs.getInt("ID_Fascia"));

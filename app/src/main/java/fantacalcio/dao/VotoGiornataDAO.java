@@ -136,6 +136,19 @@ public class VotoGiornataDAO {
         }
     }
 
+    public int cancellaVoto(int idCalciatore, int numeroGiornata) {
+        final String sql = "DELETE FROM VOTO_GIORNATA WHERE ID_Calciatore = ? AND Numero_Giornata = ?";
+        try (Connection conn = dbConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idCalciatore);
+            stmt.setInt(2, numeroGiornata);
+            return stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Errore cancellaVoto: " + e.getMessage());
+            return 0;
+        }
+    }
+
     /**
      * Mapping ResultSet -> VotoGiornata
      * NB: il DB salva solo il Voto_base; gli altri campi del model sono calcolati/gestiti app.

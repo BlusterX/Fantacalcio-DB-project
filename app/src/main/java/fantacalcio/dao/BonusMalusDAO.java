@@ -12,10 +12,6 @@ import java.util.Optional;
 import fantacalcio.model.BonusMalus;
 import fantacalcio.util.DatabaseConnection;
 
-/**
- * DAO per tabella BONUS_MALUS
- * Colonne: ID_Bonus_Malus (PK), Tipologia, Punteggio
- */
 public class BonusMalusDAO {
 
     private final DatabaseConnection db;
@@ -24,7 +20,6 @@ public class BonusMalusDAO {
         this.db = DatabaseConnection.getInstance();
     }
 
-    /** INSERT */
     public boolean inserisci(BonusMalus bm) {
         final String sql = "INSERT INTO BONUS_MALUS (Tipologia, Punteggio) VALUES (?, ?)";
         try (Connection conn = db.getConnection();
@@ -157,7 +152,6 @@ public class BonusMalusDAO {
             rs.getString("Tipologia"),
             rs.getDouble("Punteggio")
         );
-        // Schema DB: ID_Bonus_Malus, Tipologia, Punteggio
     }
 
     public int seedDefaults() {
@@ -166,8 +160,6 @@ public class BonusMalusDAO {
             {"Assist", 1.00},
             {"Ammonizione", -0.50},
             {"Espulsione", -1.00},
-            {"Rigore Sbagliato", -3.00},
-            {"Autogol", -2.00},
             {"Porta Imbattuta", 1.00}
         };
 

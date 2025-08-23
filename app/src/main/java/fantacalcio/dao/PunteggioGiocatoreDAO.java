@@ -102,6 +102,54 @@ public class PunteggioGiocatoreDAO {
         return 0;
     }
 
+    public double calcolaTotaleFantapuntiFormazione(int idFormazione, int giornata) {
+        final String sql = """
+            SELECT ROUND(SUM(fv_rounded), 1) AS tot
+            FROM (
+                SELECT GREATEST(
+                        1.0,
+                        ROUND(COALESCE(v.Voto_base,0) + COALESCE(SUM(b.Punteggio * p.Quantità),0), 1)
+                    ) AS fv_rounded
+                FROM FORMANO fm
+                JOIN CALCIATORE c ON c.ID_Calciatore = fm.ID_Calciatore
+                LEFT JOIN VOTO_GIORNATA v
+                    ON v.ID_Calciatore = c.ID_Calciatore AND v.Numero_Giornata = ?
+                LEFT JOIN PUNTEGGIO p
+                    ON p.ID_Calciatore = c.ID_Calciatore AND p.Numero_Giornata = ?
+                LEFT JOIN BONUS_MALUS b
+                    ON b.ID_Bonus_Malus = p.ID_Bonus_Malus
+                WHERE fm.ID_Formazione = ? AND fm.Panchina = 'NO'
+                GROUP BY c.ID_Calciatore
+            ) x
+        """;
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, giornata);
+            stmt.setInt(2, giornata);
+            stmt.setInt(3, idFormazione);
+            try (var rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getDouble(1);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("calcolaTotaleFantapuntiFormazione: " + e.getMessage(), e);
+        }
+        return 0.0;
+    }
+
+
+    public int cancellaEventi(int idCalciatore, int numeroGiornata) {
+        final String sql = "DELETE FROM PUNTEGGIO_GIOCATORE WHERE ID_Calciatore = ? AND Numero_Giornata = ?";
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idCalciatore);
+            stmt.setInt(2, numeroGiornata);
+            return stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Errore cancellaEventi: " + e.getMessage());
+            return 0;
+        }
+    }
+
     /**
      * Metodo helper per creare oggetto PunteggioGiocatore da ResultSet
      */

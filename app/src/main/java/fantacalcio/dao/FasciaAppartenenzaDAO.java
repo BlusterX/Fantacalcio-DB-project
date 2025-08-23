@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import fantacalcio.model.FasciaAppartenenza;
 import fantacalcio.model.FasciaGiocatore;
@@ -162,6 +163,46 @@ public class FasciaAppartenenzaDAO {
         }
         return 0;
     }
+
+    public boolean assegnaFasciaUnica(int idCalciatore, int idFascia) {
+        rimuoviTutteLeFasceDelCalciatore(idCalciatore);
+        return assegnaFascia(idCalciatore, idFascia);
+    }
+
+    // FasciaAppartenenzaDAO.java  (aggiungi in classe)
+    public Optional<FasciaGiocatore> trovaFasciaPerCalciatore(int idCalciatore) {
+        final String sql = """
+            SELECT f.*
+            FROM FASCIA_GIOCATORE f
+            JOIN FASCIA_APPARTENENZA fa ON fa.ID_Fascia = f.ID_Fascia
+            WHERE fa.ID_Calciatore = ?
+            LIMIT 1
+        """;
+        try (Connection conn = db.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idCalciatore);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    FasciaGiocatore f = new FasciaGiocatore();
+                    f.setIdFascia(rs.getInt("ID_Fascia"));
+                    f.setNomeFascia(rs.getString("Nome_fascia"));
+                    f.setProbGolAttaccante(rs.getDouble("Prob_gol_attaccante"));
+                    f.setProbGolCentrocampista(rs.getDouble("Prob_gol_centrocampista"));
+                    f.setProbGolDifensore(rs.getDouble("Prob_gol_difensore"));
+                    f.setProbAssist(rs.getDouble("Prob_assist"));
+                    f.setProbAmmonizione(rs.getDouble("Prob_ammonizione"));
+                    f.setProbEspulsione(rs.getDouble("Prob_espulsione"));
+                    f.setProbImbattibilita(rs.getDouble("Prob_imbattibilita"));
+                    f.setVotoBaseStandard(rs.getDouble("Voto_base_standard"));
+                    return Optional.of(f);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore trovaFasciaPerCalciatore: " + e.getMessage());
+        }
+        return Optional.empty();
+    }
+
 
     /** Ritorna tutte le coppie (ID_Calciatore, ID_Fascia) */
     public List<FasciaAppartenenza> trovaTutte() {
