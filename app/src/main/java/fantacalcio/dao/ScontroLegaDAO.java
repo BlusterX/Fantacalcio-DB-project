@@ -86,44 +86,39 @@ public class ScontroLegaDAO {
         return out;
     }
     
-    /** true se ogni squadra COMPLETATA della lega ha una formazione con 11 titolari per la giornata indicata */
     public boolean tutteFormazioniPresentiPerGiornata(int idLega, int giornata) {
         final String sqlPartecipanti = """
-            SELECT COUNT(*) 
-            FROM SQUADRA_FANTACALCIO 
+            SELECT COUNT(*)
+            FROM SQUADRA_FANTACALCIO
             WHERE ID_Lega = ? AND Completata = TRUE
         """;
         final String sqlConFormazione = """
             SELECT COUNT(DISTINCT f.ID_Squadra_Fantacalcio)
             FROM FORMAZIONE f
             JOIN SQUADRA_FANTACALCIO s ON s.ID_Squadra_Fantacalcio = f.ID_Squadra_Fantacalcio
-            JOIN TITOLARI t ON t.ID_Formazione = f.ID_Formazione
-            WHERE s.ID_Lega = ? AND f.Numero_Giornata = ?
+            JOIN FORMANO fo ON fo.ID_Formazione = f.ID_Formazione
+            WHERE s.ID_Lega = ? AND f.Numero_Giornata = ? AND fo.Panchina = 'NO'
             GROUP BY f.ID_Formazione
-            HAVING COUNT(t.ID_Calciatore) = 11
+            HAVING COUNT(fo.ID_Calciatore) = 11
         """;
 
         int partecipanti = 0, conFormazione = 0;
         try (var c = dbConnection.getConnection()) {
             try (var ps = c.prepareStatement(sqlPartecipanti)) {
                 ps.setInt(1, idLega);
-                try (var rs = ps.executeQuery()) {
-                    if (rs.next()) partecipanti = rs.getInt(1);
-                }
+                try (var rs = ps.executeQuery()) { if (rs.next()) partecipanti = rs.getInt(1); }
             }
             try (var ps = c.prepareStatement(sqlConFormazione)) {
                 ps.setInt(1, idLega);
                 ps.setInt(2, giornata);
-                try (var rs = ps.executeQuery()) {
-                    // somma quante FORM. distinte rispettano i 11 titolari
-                    while (rs.next()) conFormazione++;
-                }
+                try (var rs = ps.executeQuery()) { while (rs.next()) conFormazione++; }
             }
         } catch (SQLException e) {
             System.err.println("Errore controllo formazioni: " + e.getMessage());
         }
         return partecipanti > 0 && conFormazione == partecipanti;
     }
+
 
 
     /** comodo per aprire il dettaglio */
@@ -248,7 +243,7 @@ public class ScontroLegaDAO {
 
                 final String insScontro = """
                     INSERT INTO SCONTRO (ID_Formazione1, ID_Formazione2, Risultato, Stato, Data_inizio, Numero_Giornata, ID_Lega)
-                    VALUES (?, ?, NULL, 'PROGRAMMATO', NULL, ?, ?)
+                    VALUES (?, ?, '', 'PROGRAMMATO', NULL, ?, ?)
                 """;
 
                 try (PreparedStatement psScontro = c.prepareStatement(insScontro)) {
@@ -290,6 +285,27 @@ public class ScontroLegaDAO {
         }
     }
 
+
+    /** quante giornate sono già presenti nel calendario di questa lega */
+    public int contaGiornateCalendario(int idLega) {
+        final String sql = "SELECT COUNT(DISTINCT Numero_Giornata) FROM SCONTRO WHERE ID_Lega = ?";
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    /** elimina tutti gli scontri della lega (utile per ripartenze da calendario parziale) */
+    public int svuotaCalendarioLega(int idLega) {
+        final String del = "DELETE FROM SCONTRO WHERE ID_Lega = ?";
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(del)) {
+            ps.setInt(1, idLega);
+            return ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+    
     /**
      * Genera calendario completo (andata+ritorno)
      */
@@ -383,14 +399,65 @@ public class ScontroLegaDAO {
      */
     public boolean avviaLegaManualmente(int idLega) {
         if (!verificaAvvioLega(idLega)) return false;
+
         if (!tutteFormazioniPresentiPerGiornata(idLega, 1)) {
             System.err.println("Non tutte le squadre hanno consegnato la formazione della 1ª giornata.");
             return false;
         }
+
         List<Integer> squadreIds = getSquadreCompleteLega(idLega);
-        if (!generaCalendarioCompleto(idLega, squadreIds)) return false;
+        if (!generaCalendario38(idLega, squadreIds)) return false;
+
         return avviaLega(idLega);
     }
+
+    public List<Integer> listaGiornatePerLega(int idLega) {
+        final String sql = "SELECT DISTINCT Numero_Giornata FROM SCONTRO WHERE ID_Lega = ? ORDER BY Numero_Giornata";
+        List<Integer> out = new ArrayList<>();
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(rs.getInt(1));
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore lista giornate: " + e.getMessage());
+        }
+        return out;
+    }
+
+    public boolean aggiornaRisultato(int idScontro, double punti1, double punti2) {
+        String risultato = formatRisultato(punti1, punti2);
+        final String sql = """
+            UPDATE SCONTRO
+            SET Risultato = ?, 
+                Stato = 'COMPLETATO',
+                Data_inizio = COALESCE(Data_inizio, CURRENT_TIMESTAMP)
+            WHERE ID_Scontro = ?
+        """;
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setString(1, risultato);
+            ps.setInt(2, idScontro);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Errore aggiornamento risultato: " + e.getMessage());
+            return false;
+        }
+    }
+
+
+    private static String formatRisultato(double p1, double p2) {
+        int g1 = puntiToGol(p1);
+        int g2 = puntiToGol(p2);
+        return String.format("%d-%d (%.1f–%.1f)", g1, g2, p1, p2);
+    }
+
+    // classica soglia 66 = 1 gol, +6 per gol addizionale (modifica se vuoi)
+    private static int puntiToGol(double punti) {
+        if (punti < 66.0) return 0;
+        return 1 + (int)Math.floor((punti - 66.0) / 6.0);
+    }
+
 
 
     /**
@@ -430,10 +497,7 @@ public class ScontroLegaDAO {
             return false;
         }
     }
-
-    /**
-     * Verifica se ci sono almeno 2 e al massimo 12 squadre completate, in numero pari.
-     */
+    
     public boolean verificaAvvioLega(int idLega) {
         final String sql = """
             SELECT COUNT(*) AS num_squadre
@@ -455,9 +519,6 @@ public class ScontroLegaDAO {
         return false;
     }
 
-    /**
-     * Stato lega
-     */
     public String getStatoLega(int idLega) {
         final String sql = "SELECT Stato FROM LEGA WHERE ID_Lega = ?";
         try (Connection c = dbConnection.getConnection();
@@ -472,9 +533,6 @@ public class ScontroLegaDAO {
         return "CREATA";
     }
 
-    /**
-     * Giornata “corrente”: la minima Numero_Giornata con scontri non COMPLETATI per quella lega.
-     */
     public int getGiornataCorrente(int idLega) {
         final String sql = """
             SELECT MIN(Numero_Giornata)
@@ -482,16 +540,21 @@ public class ScontroLegaDAO {
             WHERE ID_Lega = ? AND Stato <> 'COMPLETATO'
         """;
         try (Connection c = dbConnection.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+            PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, idLega);
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next() && rs.getInt(1) != 0) return rs.getInt(1);
+                if (rs.next()) {
+                    int val = rs.getInt(1);
+                    if (!rs.wasNull()) return val;   // c'è almeno una giornata ancora da giocare
+                }
             }
         } catch (SQLException e) {
             System.err.println("Errore lettura giornata corrente: " + e.getMessage());
         }
-        return 1;
+        int max = getMaxGiornate(idLega);
+        return (max > 0) ? (max + 1) : 1;
     }
+
 
     /**
      * Max giornate presenti in calendario per la lega.
@@ -507,6 +570,10 @@ public class ScontroLegaDAO {
         } catch (SQLException e) {
             return 0;
         }
+    }
+
+    public int getMaxGiornatePublic(int idLega) {
+        return getMaxGiornate(idLega);
     }
 
     /**
@@ -532,17 +599,16 @@ public class ScontroLegaDAO {
         }
     }
 
-    /**
-     * Aggiorna il risultato (stringa, es. "2-1") e imposta COMPLETATO.
-     */
     public boolean aggiornaRisultato(int idScontro, String risultato) {
         final String sql = """
             UPDATE SCONTRO
-            SET Risultato = ?, Stato = 'COMPLETATO'
+            SET Risultato = ?,
+                Stato = 'COMPLETATO',
+                Data_inizio = COALESCE(Data_inizio, CURRENT_TIMESTAMP)
             WHERE ID_Scontro = ?
         """;
         try (Connection c = dbConnection.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+            PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, risultato);
             ps.setInt(2, idScontro);
             return ps.executeUpdate() > 0;
@@ -552,20 +618,41 @@ public class ScontroLegaDAO {
         }
     }
 
-    /**
-     * Avanza alla prossima giornata “logica”: qui non c'è un campo in LEGA,
-     * quindi è un no-op che ritorna true se esistono ancora giornate da giocare.
-     */
     public boolean avanzaGiornata(int idLega) {
         int corrente = getGiornataCorrente(idLega);
         int max = getMaxGiornate(idLega);
         return corrente <= max;
     }
 
-    /**
-     * (Opzionale) Simula tutte le giornate: qui ti lascio lo scheletro senza MatchSimulationService,
-     * perché lo schema non conserva Giornata_Corrente su LEGA.
-     */
+    public boolean esistonoScontriDaGiocare(int idLega) {
+        final String sql = "SELECT COUNT(*) FROM SCONTRO WHERE ID_Lega = ? AND Stato <> 'COMPLETATO'";
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idLega);
+            try (var rs = ps.executeQuery()) { return rs.next() && rs.getInt(1) > 0; }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    // set di stato per TUTTI gli scontri di una giornata
+    public int setStatoGiornata(int idLega, int giornata, fantacalcio.model.ScontroLega.StatoScontro stato) {
+        final String sql = "UPDATE SCONTRO SET Stato = ? WHERE ID_Lega = ? AND Numero_Giornata = ?";
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setString(1, stato.name());
+            ps.setInt(2, idLega);
+            ps.setInt(3, giornata);
+            return ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    // comodo per chiudere la lega
+    public void setStatoLega(int idLega, String stato) {
+        final String sql = "UPDATE LEGA SET Stato = ? WHERE ID_Lega = ?";
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setString(1, stato);
+            ps.setInt(2, idLega);
+            ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     public void simulaTutteLeGiornate(int idLega) {
         if (!"IN_CORSO".equals(getStatoLega(idLega))) {
             System.out.println("La lega non è in corso");
@@ -574,12 +661,126 @@ public class ScontroLegaDAO {
         int g = getGiornataCorrente(idLega);
         int max = getMaxGiornate(idLega);
         for (; g <= max; g++) {
-            // qui richiamerai il tuo simulatore esterno passando idLega e g
-            // es. simulator.simulaGiornata(idLega, g);
             System.out.println("Simulata giornata " + g + "/" + max);
         }
         terminaLega(idLega);
     }
+
+    /** true se esiste almeno uno scontro già creato per la lega */
+    private boolean esistonoScontriPerLega(int idLega) {
+        final String q = "SELECT 1 FROM SCONTRO WHERE ID_Lega = ? LIMIT 1";
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(q)) {
+            ps.setInt(1, idLega);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        } catch (SQLException e) {
+            System.err.println("Errore esistonoScontriPerLega: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Genera un calendario di ESATTAMENTE 38 giornate per la lega.
+     * Se N è dispari gestisce BYE; se N è piccolo (es. 2) ripete i turni alternando casa/trasferta
+     * finché si raggiunge la giornata 38. Crea anche le FORMAZIONI "scheletro" per ogni giornata.
+     */
+    public boolean generaCalendario38(int idLega, List<Integer> squadreFantIds) {
+        final int NUM_GIORNATE = 38;
+
+        if (squadreFantIds == null || squadreFantIds.size() < 2) {
+            System.err.println("[generaCalendario38] servono almeno 2 squadre");
+            return false;
+        }
+        if (esistonoScontriPerLega(idLega)) {
+            System.out.println("[generaCalendario38] calendario già presente, salto");
+            return true;
+        }
+
+        // Assicura le giornate 1..38 (FK su FORMAZIONE.Numero_Giornata e SCONTRO.Numero_Giornata)
+        new GiornataDAO().ensureGiornate38();
+
+        // Costruisci round-robin base (algoritmo di Berger) – con BYE se dispari
+        List<Integer> teams = new ArrayList<>(squadreFantIds);
+        if (teams.size() % 2 != 0) teams.add(null); // BYE
+        int n = teams.size();
+        int giornateBase = n - 1;           // turni base
+        int partitePerGiornata = n / 2;
+
+        List<List<int[]>> roundBase = new ArrayList<>();
+        List<Integer> rot = new ArrayList<>(teams);
+
+        for (int g = 0; g < giornateBase; g++) {
+            List<int[]> matches = new ArrayList<>();
+            for (int i = 0; i < partitePerGiornata; i++) {
+                Integer a = rot.get(i);
+                Integer b = rot.get(n - 1 - i);
+                if (a != null && b != null) matches.add(new int[]{a, b}); // a in casa, b fuori
+            }
+            roundBase.add(matches);
+            // rotazione (mantieni fisso l'indice 0)
+            Integer first = rot.get(0);
+            Integer last  = rot.remove(rot.size() - 1);
+            rot.add(1, last);
+            rot.set(0, first);
+        }
+
+        // Replicazione dei turni base fino a 38, alternando casa/trasferta
+        List<List<int[]>> giornate = new ArrayList<>();
+        boolean invertHomeAway = false;
+        while (giornate.size() < NUM_GIORNATE) {
+            for (var g : roundBase) {
+                if (giornate.size() >= NUM_GIORNATE) break;
+                List<int[]> copia = new ArrayList<>(g.size());
+                for (int[] p : g) {
+                    copia.add(invertHomeAway ? new int[]{p[1], p[0]} : new int[]{p[0], p[1]});
+                }
+                giornate.add(copia);
+            }
+            invertHomeAway = !invertHomeAway;
+        }
+
+        // INSERT negli SCONTRO + ensure FORMAZIONE per (squadra, giornata)
+        final String insScontro = """
+            INSERT INTO SCONTRO
+            (ID_Formazione1, ID_Formazione2, Risultato, Stato, Data_inizio, Numero_Giornata, ID_Lega)
+            VALUES (?, ?, '', 'PROGRAMMATO', NULL, ?, ?)
+        """;
+
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement psScontro = c.prepareStatement(insScontro)) {
+
+            c.setAutoCommit(false);
+
+            for (int gIdx = 0; gIdx < NUM_GIORNATE; gIdx++) {
+                int numGiornata = gIdx + 1;
+
+                for (int[] match : giornate.get(gIdx)) {
+                    int idSq1 = match[0];
+                    int idSq2 = match[1];
+
+                    int f1 = ensureFormazione(c, idSq1, numGiornata);
+                    int f2 = ensureFormazione(c, idSq2, numGiornata);
+
+                    psScontro.setInt(1, f1);
+                    psScontro.setInt(2, f2);
+                    psScontro.setInt(3, numGiornata);
+                    psScontro.setInt(4, idLega);
+                    psScontro.addBatch();
+                }
+            }
+
+            psScontro.executeBatch();
+            c.commit();
+
+            System.out.println("[generaCalendario38] creato calendario da 38 giornate per lega " + idLega);
+            return true;
+
+        } catch (SQLException e) {
+            System.err.println("Errore generaCalendario38: " + e.getMessage());
+            return false;
+        }
+    }
+
 
     private void terminaLega(int idLega) {
         final String sql = "UPDATE LEGA SET Stato = 'TERMINATA' WHERE ID_Lega = ?";

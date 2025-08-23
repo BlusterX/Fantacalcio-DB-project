@@ -120,110 +120,43 @@ public class LegaDAO {
         return 0;
     }
 
-    // LegaDAO.java
     public boolean avviaLegaSePronta(int idLega) {
-        String qSquadre = """
-            SELECT ID_Squadra_Fantacalcio
-            FROM SQUADRA_FANTACALCIO
-            WHERE ID_Lega = ?
-            ORDER BY ID_Squadra_Fantacalcio
-            """;
-        String qStato = "SELECT Stato FROM LEGA WHERE ID_Lega = ?";
-        String qForm = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra_Fantacalcio=? AND Numero_Giornata=1";
-        String qChkDay1 = "SELECT COUNT(*) FROM SCONTRO WHERE ID_Lega=? AND Numero_Giornata=1";
-        String qInsMatch = "INSERT INTO SCONTRO (ID_Formazione1, ID_Formazione2, Risultato, Stato, Data_inizio, Numero_Giornata, ID_Lega) " +
-                        "VALUES (?, ?, '-', 'PROGRAMMATO', NOW(), 1, ?)";
-        String qInsGiornata = "INSERT IGNORE INTO GIORNATA (Numero) VALUES (1)";
-        String qUpStato = "UPDATE LEGA SET Stato='IN_CORSO' WHERE ID_Lega=?";
+        ScontroLegaDAO sdao = new ScontroLegaDAO();
 
-        try (Connection conn = dbConnection.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                // 0) lega deve essere CREATA
-                try (PreparedStatement ps = conn.prepareStatement(qStato)) {
-                    ps.setInt(1, idLega);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next() || !"CREATA".equals(rs.getString(1))) {
-                            throw new IllegalStateException("La lega non è nello stato 'CREATA'.");
-                        }
-                    }
-                }
-
-                // 1) partecipanti: pari e tra 2 e 12
-                List<Integer> squadre = new ArrayList<>();
-                try (PreparedStatement ps = conn.prepareStatement(qSquadre)) {
-                    ps.setInt(1, idLega);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) squadre.add(rs.getInt(1));
-                    }
-                }
-                int n = squadre.size();
-                if (n < 2 || n > 12 || (n % 2) != 0) {
-                    throw new IllegalStateException("Partecipanti non validi: devono essere pari e compresi tra 2 e 12. Attuali: " + n);
-                }
-
-                // 2) assicurati che esista la giornata 1
-                try (PreparedStatement ps = conn.prepareStatement(qInsGiornata)) {
-                    ps.executeUpdate();
-                }
-
-                // 3) ogni squadra deve avere la formazione della giornata 1
-                List<Integer> formazioniDay1 = new ArrayList<>(n);
-                try (PreparedStatement ps = conn.prepareStatement(qForm)) {
-                    for (Integer idSquadra : squadre) {
-                        ps.setInt(1, idSquadra);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) formazioniDay1.add(rs.getInt(1));
-                            else throw new IllegalStateException(
-                                    "Manca la formazione della giornata 1 per la squadra (ID_Fantacalcio=" + idSquadra + ").");
-                        }
-                    }
-                }
-
-                // 4) niente doppioni della giornata 1
-                try (PreparedStatement ps = conn.prepareStatement(qChkDay1)) {
-                    ps.setInt(1, idLega);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next() && rs.getInt(1) > 0) {
-                            throw new IllegalStateException("La giornata 1 è già stata generata per questa lega.");
-                        }
-                    }
-                }
-
-                // 5) genera gli scontri della giornata 1 (accoppiamento specchio)
-                try (PreparedStatement ins = conn.prepareStatement(qInsMatch)) {
-                    for (int i = 0; i < n / 2; i++) {
-                        int f1 = formazioniDay1.get(i);
-                        int f2 = formazioniDay1.get(n - 1 - i);
-                        ins.setInt(1, f1);
-                        ins.setInt(2, f2);
-                        ins.setInt(3, idLega);
-                        ins.addBatch();
-                    }
-                    ins.executeBatch();
-                }
-
-                // 6) passa la lega a IN_CORSO
-                try (PreparedStatement ps = conn.prepareStatement(qUpStato)) {
-                    ps.setInt(1, idLega);
-                    ps.executeUpdate();
-                }
-
-                conn.commit();
-                return true;
-            } catch (Exception ex) {
-                try { conn.rollback(); } catch (Exception ignore) {}
-                if (ex instanceof IllegalStateException) throw (IllegalStateException) ex;
-                throw new RuntimeException("Errore avvio lega: " + ex.getMessage(), ex);
-            } finally {
-                try { conn.setAutoCommit(true); } catch (Exception ignore) {}
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Errore connessione DB: " + e.getMessage(), e);
+        // Stato deve essere CREATA
+        String stato = sdao.getStatoLega(idLega);
+        if (!"CREATA".equalsIgnoreCase(stato)) {
+            throw new IllegalStateException("La lega non è nello stato 'CREATA'.");
         }
+
+        // Prerequisiti minimi (2..12 squadre, pari, completate)
+        if (!sdao.verificaAvvioLega(idLega)) {
+            throw new IllegalStateException("Servono 2..12 squadre (pari) e tutte 'completate'.");
+        }
+
+        // Tutte le squadre devono aver consegnato gli 11 titolari per la 1ª giornata
+        if (!sdao.tutteFormazioniPresentiPerGiornata(idLega, 1)) {
+            throw new IllegalStateException("Ogni squadra deve avere 11 titolari per la 1ª giornata.");
+        }
+
+        int maxG = sdao.getMaxGiornatePublic(idLega);
+        if (maxG > 0 && maxG < 38) {
+            sdao.svuotaCalendarioLega(idLega);
+            maxG = 0;
+        }
+
+        // Giornate 1..38 e calendario 38 giornate (idempotente)
+        new GiornataDAO().ensureGiornate38();
+        if (maxG == 0) {
+            var squadre = sdao.getSquadreCompleteLega(idLega);
+            if (!sdao.generaCalendario38(idLega, squadre)) {
+                throw new IllegalStateException("Generazione calendario a 38 giornate fallita.");
+            }
+        }
+
+        // Avvio lega e programmazione della 1ª giornata
+        return sdao.avviaLega(idLega);
     }
-
-
 
     /**
      * Trova tutte le leghe (partecipazioni non ancora gestite)

@@ -204,22 +204,84 @@ public class FormazioneDAO {
         }
     }
 
+    public int countTitolari(int idFormazione) {
+        final String sql = "SELECT COUNT(*) FROM FORMANO WHERE ID_Formazione=? AND Panchina='NO'";
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idFormazione);
+            try (var rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    public Integer getSquadraByFormazione(int idFormazione) {
+        final String sql = "SELECT ID_Squadra_Fantacalcio FROM FORMAZIONE WHERE ID_Formazione=?";
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idFormazione);
+            try (var rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : null; }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    public Integer findLastFormazioneCompleta(int idSquadra, int giornata) {
+        final String sql = """
+            SELECT f.ID_Formazione
+            FROM FORMAZIONE f
+            JOIN FORMANO fo ON fo.ID_Formazione=f.ID_Formazione AND fo.Panchina='NO'
+            WHERE f.ID_Squadra_Fantacalcio=? AND f.Numero_Giornata < ?
+            GROUP BY f.ID_Formazione, f.Numero_Giornata
+            HAVING COUNT(fo.ID_Calciatore)=11
+            ORDER BY f.Numero_Giornata DESC
+            LIMIT 1
+        """;
+        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idSquadra);
+            ps.setInt(2, giornata);
+            try (var rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : null; }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    public void copiaXI(int fromIdFormazione, int toIdFormazione) {
+        final String del = "DELETE FROM FORMANO WHERE ID_Formazione=?";
+        final String ins = """
+            INSERT INTO FORMANO (ID_Formazione, ID_Calciatore, Panchina)
+            SELECT ?, fo.ID_Calciatore, 'NO'
+            FROM FORMANO fo
+            WHERE fo.ID_Formazione=? AND fo.Panchina='NO'
+        """;
+        try (var c = dbConnection.getConnection()) {
+            c.setAutoCommit(false);
+            try (var ps1 = c.prepareStatement(del); var ps2 = c.prepareStatement(ins)) {
+                ps1.setInt(1, toIdFormazione);
+                ps1.executeUpdate();
+
+                ps2.setInt(1, toIdFormazione);
+                ps2.setInt(2, fromIdFormazione);
+                ps2.executeUpdate();
+
+                c.commit();
+            } catch (SQLException e) { c.rollback(); throw e; }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+
     // true se già esiste, altrimenti clona l’ultima e ritorna l'ID nuova
     public int ensureFormazionePerGiornata(int idSquadra, int giornata) {
         String qFind = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra_Fantacalcio=? AND Numero_Giornata=?";
-        String qPrev = "SELECT ID_Formazione, Numero_Giornata FROM FORMAZIONE WHERE ID_Squadra_Fantacalcio=? AND Numero_Giornata < ? ORDER BY Numero_Giornata DESC LIMIT 1";
-        String qInsF = "INSERT INTO FORMAZIONE (Modulo, ID_Squadra_Fantacalcio, Numero_Giornata, Punteggio) " +
-                    "SELECT Modulo, ID_Squadra_Fantacalcio, ?, 0 FROM FORMAZIONE WHERE ID_Formazione=?";
-        String qCopy = "INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina) " +
-                    "SELECT ID_Calciatore, ?, Panchina FROM FORMANO WHERE ID_Formazione=?";
+        String qPrev = "SELECT ID_Formazione FROM FORMAZIONE WHERE ID_Squadra_Fantacalcio=? AND Numero_Giornata < ? ORDER BY Numero_Giornata DESC LIMIT 1";
+        String qInsF = """
+            INSERT INTO FORMAZIONE (Modulo, ID_Squadra_Fantacalcio, Numero_Giornata, Punteggio)
+            SELECT Modulo, ID_Squadra_Fantacalcio, ?, 0 FROM FORMAZIONE WHERE ID_Formazione=?
+        """;
+        String qCopy = """
+            INSERT INTO FORMANO (ID_Calciatore, ID_Formazione, Panchina)
+            SELECT ID_Calciatore, ?, Panchina FROM FORMANO WHERE ID_Formazione=?
+        """;
 
         try (Connection c = dbConnection.getConnection()) {
-            // esiste già?
+            // già esiste?
             try (PreparedStatement ps = c.prepareStatement(qFind)) {
                 ps.setInt(1, idSquadra); ps.setInt(2, giornata);
                 try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return rs.getInt(1); }
             }
-            // prendi l'ultima precedente
+            // prendi la precedente
             int prevId;
             try (PreparedStatement ps = c.prepareStatement(qPrev)) {
                 ps.setInt(1, idSquadra); ps.setInt(2, giornata);
@@ -241,10 +303,14 @@ public class FormazioneDAO {
                 copy.setInt(2, prevId);
                 copy.executeUpdate();
             }
-            c.commit(); c.setAutoCommit(true);
+            c.commit();
+            c.setAutoCommit(true);
             return newId;
-        } catch (SQLException e) { throw new RuntimeException(e); }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
+
 
 
     private Integer findFormazioneIdBySquadraGiornata(Connection conn, int idSquadra, int giornata) throws SQLException {
@@ -258,6 +324,19 @@ public class FormazioneDAO {
         }
         return null;
     }
+
+    public boolean aggiornaPunteggio(Connection conn, int idFormazione, double punteggio) {
+        final String sql = "UPDATE FORMAZIONE SET Punteggio = ? WHERE ID_Formazione = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDouble(1, punteggio);
+            ps.setInt(2, idFormazione);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Errore aggiornaPunteggio: " + e.getMessage());
+            return false;
+        }
+    }
+
 
     /** INSERT su FORMAZIONE secondo schema attuale (con Numero_Giornata nella stessa tabella). */
     private int insertFormazione(Connection conn, String modulo, int idSquadra, int giornata) throws SQLException {
@@ -308,6 +387,18 @@ public class FormazioneDAO {
         }
     }
 
+    public boolean aggiornaPunteggio(int idFormazione, double punteggio) {
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement("UPDATE FORMAZIONE SET Punteggio=? WHERE ID_Formazione=?")) {
+            ps.setDouble(1, punteggio);
+            ps.setInt(2, idFormazione);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Errore aggiornaPunteggio(no-conn): " + e.getMessage());
+            return false;
+        }
+    }
+    
     public boolean copiaFormazioneDaGiornata(int idSquadraFantacalcio, int fromGiornata, int toGiornata) {
         try (Connection conn = dbConnection.getConnection()) {
             conn.setAutoCommit(false);
