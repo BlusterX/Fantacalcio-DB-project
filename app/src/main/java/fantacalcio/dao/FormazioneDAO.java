@@ -206,18 +206,28 @@ public class FormazioneDAO {
 
     public int countTitolari(int idFormazione) {
         final String sql = "SELECT COUNT(*) FROM FORMANO WHERE ID_Formazione=? AND Panchina='NO'";
-        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, idFormazione);
-            try (var rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
-        } catch (SQLException e) { throw new RuntimeException(e); }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Integer getSquadraByFormazione(int idFormazione) {
         final String sql = "SELECT ID_Squadra_Fantacalcio FROM FORMAZIONE WHERE ID_Formazione=?";
-        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, idFormazione);
-            try (var rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : null; }
-        } catch (SQLException e) { throw new RuntimeException(e); }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Integer findLastFormazioneCompleta(int idSquadra, int giornata) {
@@ -231,11 +241,16 @@ public class FormazioneDAO {
             ORDER BY f.Numero_Giornata DESC
             LIMIT 1
         """;
-        try (var c = dbConnection.getConnection(); var ps = c.prepareStatement(sql)) {
+        try (Connection c = dbConnection.getConnection();
+            PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, idSquadra);
             ps.setInt(2, giornata);
-            try (var rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : null; }
-        } catch (SQLException e) { throw new RuntimeException(e); }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void copiaXI(int fromIdFormazione, int toIdFormazione) {
@@ -246,9 +261,10 @@ public class FormazioneDAO {
             FROM FORMANO fo
             WHERE fo.ID_Formazione=? AND fo.Panchina='NO'
         """;
-        try (var c = dbConnection.getConnection()) {
+        try (Connection c = dbConnection.getConnection()) {
             c.setAutoCommit(false);
-            try (var ps1 = c.prepareStatement(del); var ps2 = c.prepareStatement(ins)) {
+            try (PreparedStatement ps1 = c.prepareStatement(del);
+                PreparedStatement ps2 = c.prepareStatement(ins)) {
                 ps1.setInt(1, toIdFormazione);
                 ps1.executeUpdate();
 
@@ -257,8 +273,13 @@ public class FormazioneDAO {
                 ps2.executeUpdate();
 
                 c.commit();
-            } catch (SQLException e) { c.rollback(); throw e; }
-        } catch (SQLException e) { throw new RuntimeException(e); }
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 

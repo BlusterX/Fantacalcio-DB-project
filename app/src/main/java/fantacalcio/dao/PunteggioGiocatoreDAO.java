@@ -138,7 +138,7 @@ public class PunteggioGiocatoreDAO {
 
 
     public int cancellaEventi(int idCalciatore, int numeroGiornata) {
-        final String sql = "DELETE FROM PUNTEGGIO_GIOCATORE WHERE ID_Calciatore = ? AND Numero_Giornata = ?";
+        final String sql = "DELETE FROM PUNTEGGIO WHERE ID_Calciatore = ? AND Numero_Giornata = ?";
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, idCalciatore);

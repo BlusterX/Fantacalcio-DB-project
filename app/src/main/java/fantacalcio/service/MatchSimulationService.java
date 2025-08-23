@@ -98,8 +98,13 @@ public class MatchSimulationService {
             System.err.println("Update punteggio formazione: " + ex.getMessage());
         }
         scontroDAO.aggiornaRisultato(s.getIdScontro(), punti1, punti2);
-        aggiornaClassificaPerScontro(s, punti1, punti2);
+        try {
+            aggiornaClassificaPerScontro(s, punti1, punti2);
+        } catch (Exception ex) {
+            System.err.println("Aggiornamento classifica fallito per scontro " + s.getIdScontro() + ": " + ex.getMessage());
+        }
     }
+
 
     private void aggiornaClassificaPerScontro(ScontroLega s, double p1, double p2) {
         Integer idSq1 = formazioneDAO.getSquadraByFormazione(s.getIdFormazione1());
@@ -131,16 +136,16 @@ public class MatchSimulationService {
     }
 
 
-
-
     /** Simula i titolari, scrive voti+eventi per ciascuno e ritorna la somma fantapunti. */
     private double simulaFormazione(int idFormazione, int giornata) {
+        ensureXIOrCopyPrevious(idFormazione, giornata);
+
         List<Calciatore> titolari = formazioneDAO.trovaTitolari(idFormazione);
         if (titolari == null || titolari.isEmpty()) return 0.0;
 
         double totale = 0.0;
         boolean portaInviolataTeam = rnd.nextDouble() < 0.35;
-
+        
         for (Calciatore c : titolari) {
             FasciaGiocatore fg = fasciaDAO.trovaFasciaPerCalciatore(c.getIdCalciatore())
                     .orElseGet(() -> {

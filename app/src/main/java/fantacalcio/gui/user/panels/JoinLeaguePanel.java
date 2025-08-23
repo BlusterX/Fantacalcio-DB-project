@@ -315,9 +315,22 @@ public final class JoinLeaguePanel extends JPanel {
                     }
                     Lega lega = legaOpt.get();
 
+                    // Se partecipa già -> apri e basta
                     boolean giaPartecipa = leghePartecipate.stream().anyMatch(l -> l.getIdLega() == lega.getIdLega());
                     if (giaPartecipa) {
                         parentFrame.openLeagueDetail(lega);
+                        return;
+                    }
+
+                    String stato = (lega.getStato() != null) ? lega.getStato().toUpperCase() : "";
+                    if (!"CREATA".equals(stato)) {
+                        String msg = "Non puoi unirti tramite codice a una lega nello stato '" + stato + "'.";
+                        if ("IN_CORSO".equals(stato)) {
+                            msg += "\nChiedi all'amministratore di aggiungerti, oppure attendi una nuova lega.";
+                        } else if ("TERMINATA".equals(stato)) {
+                            msg += "\nLa lega è conclusa.";
+                        }
+                        JOptionPane.showMessageDialog(JoinLeaguePanel.this, msg, "Join non consentito", JOptionPane.WARNING_MESSAGE);
                         return;
                     }
 
