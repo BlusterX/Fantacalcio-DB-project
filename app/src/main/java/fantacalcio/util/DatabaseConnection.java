@@ -68,7 +68,7 @@ public class DatabaseConnection {
             props.load(input);
             
             // Leggi le proprietà
-            this.url = props.getProperty("db.url", "jdbc:mysql://localhost:3307/fantacalcio");
+            this.url = props.getProperty("db.url", "jdbc:mysql://localhost:3306/fantacalcio");
             this.username = props.getProperty("db.username", "root");
             this.password = props.getProperty("db.password", "");
             this.driver = props.getProperty("db.driver", "com.mysql.cj.jdbc.Driver");
@@ -80,7 +80,7 @@ public class DatabaseConnection {
      * Imposta valori di default per la connessione
      */
     private void setDefaultProperties() {
-        this.url = "jdbc:mysql://localhost:3307/fantacalcio?useSSL=false&serverTimezone=UTC";
+        this.url = "jdbc:mysql://localhost:3306/fantacalcio?useSSL=false&serverTimezone=UTC";
         this.username = "root";
         this.password = ""; 
         this.driver = "com.mysql.cj.jdbc.Driver";
