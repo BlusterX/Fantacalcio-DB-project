@@ -14,9 +14,6 @@ build/
 *.DS_Store
 deleteme/
 
-app/src/main/resources/database.properties
-**/database.properties
-
 *.bak
 *.tmp
 *.log
